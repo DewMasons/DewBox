@@ -1,0 +1,20 @@
+{
+    "bitoAI.codeCompletion.enableAutoCompletion": false,
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "mdbx",
+            "database": "mydewbox",
+            "username": "UserMDBX",
+            "connectionTimeout": 1,
+            "askForPassword": true
+        }
+    ]
+}

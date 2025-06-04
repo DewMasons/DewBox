@@ -1,0 +1,15 @@
+server-testing
+├── src
+│   ├── tests
+│   │   ├── integration
+│   │   │   └── api.test.ts
+│   │   └── unit
+│   │       └── service.test.ts
+│   ├── app.ts
+│   ├── server.ts
+│   └── types
+│       └── index.ts
+├── jest.config.js
+├── package.json
+├── tsconfig.json
+└── README.md
