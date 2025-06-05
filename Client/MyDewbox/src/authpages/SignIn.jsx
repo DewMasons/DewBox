@@ -114,7 +114,7 @@ const SignIn = () => {
                 <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
               )}
             </div>
-            <button type="submit" className="btn btn-primary w-full">
+            <button type="submit" className="btn btn-primary bg-blue-500 w-full">
               Sign In
             </button>
           </form>

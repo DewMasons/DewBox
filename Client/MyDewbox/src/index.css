@@ -4,3 +4,39 @@
 @tailwind utilities;
 @tailwind screens;
 @tailwind typography;
+
+input,
+textarea,
+select,
+button {
+  @apply font-inter;
+    @apply text-gray-900;
+    @apply bg-white;
+    @apply border-gray-300;
+    @apply focus:ring-blue-500;
+    @apply focus:border-blue-500;
+    @apply focus:outline-none;
+    @apply rounded-md;
+    @apply shadow-sm;
+    @apply transition-colors;
+    @apply focus:ring-2;
+    @apply focus:ring-opacity-50;
+    @apply hover:bg-gray-50;
+    @apply disabled:opacity-50;
+    @apply disabled:cursor-not-allowed;
+    @apply disabled:bg-gray-100;
+    @apply disabled:border-gray-200;
+    @apply disabled:shadow-none;
+    @apply disabled:focus:ring-0;
+    @apply disabled:focus:border-gray-300;
+    @apply disabled:hover:bg-white;
+    @apply disabled:hover:border-gray-300;
+    @apply disabled:hover:shadow-none;
+    @apply disabled:transition-none;
+
+
+    @apply text-sm;
+    @apply leading-6;
+    @apply placeholder-gray-400;
+    @apply placeholder-opacity-75;
+}
