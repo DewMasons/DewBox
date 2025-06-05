@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://localhost:4000', // Updated to match backend port
+  baseURL: 'https://dewbox.onrender.com', // Updated to match backend port
 });
 
 // Helper to ensure no double slashes in endpoint
