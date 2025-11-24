@@ -5,7 +5,11 @@ module.exports = {
       "./src/**/*.{js,jsx,ts,tsx}", // Adjust if your components live elsewhere
     ],
     theme: {
-      extend: {},
+      extend: {
+        fontFamily: {
+          inter: ['Inter', 'sans-serif'],
+        },
+      },
     },
     plugins: [
         require("daisyui"),
