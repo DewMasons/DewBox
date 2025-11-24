@@ -1,290 +1,419 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Home, User, Plus, CreditCard, Wallet, TrendingUp, DollarSign } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useMemo } from "react";
+import { ArrowRight, TrendingUp, Plus, PiggyBank, Target, Clock, Bell, BellOff } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 import { apiService } from "../services/api";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
 
 const Homepage = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [showAutoPayModal, setShowAutoPayModal] = useState(false);
 
-  // Fetch subscriber data using the same pattern as Profile component
-  const { data: subscriberData, isLoading, error, isFetching } = useQuery({
+  // Fetch subscriber data
+  const { data: subscriberData, isLoading: subscriberLoading } = useQuery({
     queryKey: ['subscriber'],
     queryFn: () => apiService.getSubscriber(),
     retry: 1,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Debug logging (similar to Profile component)
-  useEffect(() => {
-    console.log('=== HOMEPAGE DEBUG INFO ===');
-    console.log('subscriberData:', subscriberData);
-    console.log('isLoading:', isLoading);
-    console.log('isFetching:', isFetching);
-    
-    if (subscriberData) {
-      console.log('subscriberData keys:', Object.keys(subscriberData));
-      console.log('subscriberData.subscriber:', subscriberData.subscriber);
-      
-      if (subscriberData.subscriber) {
-        console.log('subscriber keys:', Object.keys(subscriberData.subscriber));
-      }
-    }
-    console.log('=== END DEBUG INFO ===');
-  }, [subscriberData, isLoading, error]);
+  // Fetch contribution history
+  const { data: contributionsData, isLoading: contributionsLoading } = useQuery({
+    queryKey: ['contributionHistory'],
+    queryFn: () => apiService.getContributionHistory(),
+    retry: 1,
+  });
 
-  // Info carousel data
-  const carouselItems = [
-    {
-      title: 'Save Smart with Esusu',
-      description: 'Join our rotating savings program and watch your money grow',
-      color: 'from-blue-500 to-purple-600'
-    },
-    {
-      title: 'Track Your Spending',
-      description: 'Get insights into your financial habits with detailed analytics',
-      color: 'from-green-500 to-teal-600'
-    },
-    {
-      title: 'Secure Transactions',
-      description: 'Bank-level security keeps your money safe and protected',
-      color: 'from-orange-500 to-red-600'
-    }
-  ];
+  // Fetch recent transactions
+  const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: () => apiService.getTransactions(),
+    retry: 1,
+  });
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Mock recent transactions (keep as is for now)
-  const recentTransactions = [
-    { id: 1, type: 'credit', amount: 500, description: 'Salary Deposit', date: '2024-06-02', category: 'income' },
-    { id: 2, type: 'debit', amount: 150, description: 'Grocery Shopping', date: '2024-06-01', category: 'food' },
-    { id: 3, type: 'credit', amount: 200, description: 'Esusu Contribution', date: '2024-05-31', category: 'savings' },
-    { id: 4, type: 'debit', amount: 80, description: 'Utility Bill', date: '2024-05-30', category: 'bills' },
-    { id: 5, type: 'credit', amount: 1200, description: 'Freelance Payment', date: '2024-05-29', category: 'income' }
-  ];
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
-  };
-
-  // Memoize user data extraction (similar to Profile component)
   const userData = useMemo(() => {
-    if (!subscriberData?.data?.subscriber || Object.keys(subscriberData.data.subscriber).length === 0) {
-      return {
-        name: 'User',
-        firstname: '',
-        surname: '',
-        mainBalance: 0,
-        esusuBalance: 0,
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-        createdAt: null
-      };
-    }
+    const subscriber = subscriberData?.data?.subscriber;
+    if (!subscriber) return { 
+      name: 'User', 
+      mainBalance: 0, 
+      icaBalance: 0, 
+      piggyBalance: 0,
+      hasContributed: false 
+    };
     
-    const subscriber = subscriberData.data.subscriber;
-    const fullName = subscriber.firstname && subscriber.surname 
-      ? `${subscriber.firstname} ${subscriber.surname}` 
-      : subscriber.firstname || subscriber.surname || 'User';
+    // Parse values to ensure they're numbers
+    const icaBalance = parseFloat(subscriber.ica_balance) || 0;
+    const piggyBalance = parseFloat(subscriber.piggy_balance) || 0;
+    const mainBalance = parseFloat(subscriber.balance) || 0;
     
     return {
-      name: fullName,
-      firstname: subscriber.firstname || '',
-      surname: subscriber.surname || '',
-      mainBalance: subscriber.balance || subscriber.mainBalance || 0,
-      esusuBalance: subscriber.available_balance || subscriber.esusuBalance || 0,
-      avatar: subscriber.profileImage || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-      createdAt: subscriber.createdAt
+      name: subscriber.firstname || 'User',
+      mainBalance,
+      icaBalance,
+      piggyBalance,
+      hasContributed: (icaBalance > 0 || piggyBalance > 0),
     };
   }, [subscriberData]);
 
-  // Handle loading state - same pattern as Profile component
-  const hasValidSubscriberData = subscriberData?.data?.subscriber && Object.keys(subscriberData.data.subscriber).length > 0;
-  
-  if (isLoading || isFetching || !hasValidSubscriberData) {
+  const recentActivity = useMemo(() => {
+    const transactions = transactionsData?.data || [];
+    return transactions.slice(0, 5);
+  }, [transactionsData]);
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Check if user just made first contribution
+  React.useEffect(() => {
+    if (userData.hasContributed && contributionsData?.data?.length === 1) {
+      // Show auto-pay modal after first contribution
+      const hasSeenModal = localStorage.getItem('hasSeenAutoPayModal');
+      if (!hasSeenModal) {
+        setTimeout(() => setShowAutoPayModal(true), 1000);
+      }
+    }
+  }, [userData.hasContributed, contributionsData]);
+
+  const handleDismissAutoPayModal = () => {
+    localStorage.setItem('hasSeenAutoPayModal', 'true');
+    setShowAutoPayModal(false);
+  };
+
+  const handleEnableAutoPay = () => {
+    // TODO: Implement auto-pay setup
+    toast.success('Automatic payments will be available soon!');
+    handleDismissAutoPayModal();
+  };
+
+  if (subscriberLoading) {
     return (
-      <div className="space-y-6 max-w-4xl ml-0 md:ml-72 px-4 md:px-0">
-        <div className="flex flex-col justify-center items-center h-64 space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+      <div className="max-w-7xl mx-auto space-y-6 p-4">
+        <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="h-80 bg-gray-200 rounded-3xl animate-pulse" />
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
+            <div className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Handle error state
-  if (error) {
-    console.error('Homepage query error:', error);
-    return (
-      <div className="space-y-6 max-w-4xl ml-0 md:ml-72 px-4 md:px-0">
-        <div className="flex flex-col justify-center items-center h-64 space-y-4">
-          <p className="text-red-600">Error loading dashboard data</p>
-          <p className="text-sm text-gray-500">Check console for details</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Handle no data state
-  if (!subscriberData?.data?.subscriber || Object.keys(subscriberData.data.subscriber).length === 0) {
-    console.warn('No valid subscriber data found. subscriberData:', subscriberData);
-    return (
-      <div className="space-y-6 max-w-4xl ml-0 md:ml-72 px-4 md:px-0">
-        <div className="flex flex-col justify-center items-center h-64 space-y-4">
-          <p className="text-gray-600">No dashboard data found</p>
-          <p className="text-sm text-gray-500">Check console for API response details</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const totalSavings = userData.icaBalance + userData.piggyBalance;
+  const icaProgress = userData.icaBalance > 0 ? Math.min((userData.icaBalance / 100000) * 100, 100) : 0;
 
   return (
-    <div className="space-y-6 max-w-4xl ml-0 md:ml-72 px-4 md:px-0">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">Welcome back, {userData.name}!</h1>
-            <p className="text-blue-100">Here's your financial overview</p>
-            {userData.createdAt && (
-              <p className="text-blue-200 text-sm mt-1">
-                Member since {new Date(userData.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long'
-                })}
-              </p>
-            )}
-          </div>
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-            <img 
-              src={userData.avatar} 
-              alt="Avatar" 
-              className="w-14 h-14 rounded-full object-cover"
-              onError={(e) => {
-                e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
-              }}
-            />
-          </div>
+    <div className="max-w-7xl mx-auto space-y-6 p-4">
+      {/* Welcome Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
+            Welcome back, {userData.name}! 👋
+          </h1>
+          <p className="text-[var(--color-text-secondary)] mt-1">
+            Here's your financial overview
+          </p>
         </div>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Wallet className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Main Balance</h3>
-            </div>
-            <TrendingUp className="w-5 h-5 text-green-500" />
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{formatCurrency(userData.mainBalance)}</p>
-          <p className="text-sm text-green-600 mt-2">Available funds</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-purple-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Esusu Balance</h3>
-            </div>
-            <TrendingUp className="w-5 h-5 text-purple-500" />
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{formatCurrency(userData.esusuBalance)}</p>
-          <p className="text-sm text-purple-600 mt-2">Savings balance</p>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col md:flex-row gap-4 mt-4">
-        <button className="flex-1 py-3 px-6 rounded-xl bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition">Shop</button>
-        <button className="flex-1 py-3 px-6 rounded-xl bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 transition">Join an Esusu</button>
-        <button className="flex-1 py-3 px-6 rounded-xl bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition">Create Wallet</button>
-      </div>
-
-      {/* Info Carousel */}
-      <div className="relative">
-        <div className="overflow-hidden rounded-2xl">
-          <div 
-            className="flex transition-transform duration-500 ease-out"
-            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Left Column - Main Balance & Quick Actions */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Main Balance Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-[#0066FF] to-[#0052CC] rounded-[28px] p-8 text-white shadow-[0_8px_30px_rgba(0,102,255,0.2)]"
           >
-            {carouselItems.map((item, index) => (
-              <div key={index} className={`w-full flex-shrink-0 bg-gradient-to-r ${item.color} p-6 text-white`}>
-                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                <p className="text-white/90">{item.description}</p>
+            <div className="mb-8">
+              <div className="text-sm opacity-70 mb-3 font-medium">Wallet Balance</div>
+              <div className="text-5xl font-bold mb-2 tracking-tight">
+                {formatCurrency(userData.mainBalance)}
               </div>
-            ))}
-          </div>
+              <div className="text-sm opacity-60">Available to spend</div>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => navigate('/dashboard/transactions?action=deposit')}
+                className="bg-white/15 hover:bg-white/25 rounded-[20px] p-5 transition-all duration-200 text-left border border-white/20 backdrop-blur-sm"
+              >
+                <Plus className="w-6 h-6 mb-3" />
+                <div className="text-sm font-semibold">Add Money</div>
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/transactions?action=withdraw')}
+                className="bg-white/15 hover:bg-white/25 rounded-[20px] p-5 transition-all duration-200 text-left border border-white/20 backdrop-blur-sm"
+              >
+                <ArrowRight className="w-6 h-6 mb-3" />
+                <div className="text-sm font-semibold">Transfer</div>
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Total Savings Card */}
+          <Card variant="elevated" padding="lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+                Total Savings
+              </div>
+              <TrendingUp className="text-green-500" size={20} />
+            </div>
+            <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
+              {formatCurrency(totalSavings)}
+            </div>
+            <div className="text-xs text-[var(--color-text-secondary)]">
+              ICA + Piggy combined
+            </div>
+          </Card>
         </div>
-        {/* Carousel Controls */}
-        <div className="flex justify-center mt-4 space-x-2">
-          {carouselItems.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentSlide ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            />
-          ))}
+
+        {/* Right Column - Savings Breakdown & Activity */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Piggy & ICA Cards */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Piggy Savings Card */}
+            <Card variant="elevated" padding="lg">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#fef3c7] flex items-center justify-center">
+                    <PiggyBank className="text-[#d97706]" size={24} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+                      Piggy Savings
+                    </div>
+                    <div className="text-xs text-[var(--color-text-secondary)]">
+                      Monthly
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
+                {formatCurrency(userData.piggyBalance)}
+              </div>
+              <button
+                onClick={() => navigate('/dashboard/contribute')}
+                className="text-sm text-[#0066FF] hover:underline font-medium"
+              >
+                Add to Piggy →
+              </button>
+            </Card>
+
+            {/* ICA Progress Card */}
+            <Card variant="elevated" padding="lg">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#E6F0FF] flex items-center justify-center">
+                    <Target className="text-[#0066FF]" size={24} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+                      ICA Progress
+                    </div>
+                    <div className="text-xs text-[var(--color-text-secondary)]">
+                      Yearly Goal
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-3">
+                {formatCurrency(userData.icaBalance)}
+              </div>
+              <div className="mb-2">
+                <div className="flex justify-between text-xs text-[var(--color-text-secondary)] mb-1">
+                  <span>{icaProgress.toFixed(0)}% of ₦100,000</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${icaProgress}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-[#0066FF] to-[#0052CC] rounded-full"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/dashboard/contribute')}
+                className="text-sm text-[#0066FF] hover:underline font-medium"
+              >
+                Contribute to ICA →
+              </button>
+            </Card>
+          </div>
+
+          {/* Recent Activity */}
+          <Card variant="elevated" padding="lg">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Clock className="text-[var(--color-text-secondary)]" size={20} />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                  Recent Activity
+                </h3>
+              </div>
+              <button
+                onClick={() => navigate('/dashboard/transactions')}
+                className="text-sm text-[#0066FF] hover:underline font-medium"
+              >
+                View All
+              </button>
+            </div>
+
+            {transactionsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : recentActivity.length > 0 ? (
+              <div className="space-y-3">
+                {recentActivity.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-4 bg-[var(--color-surface)] rounded-xl hover:bg-[var(--color-surface-elevated)] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution'
+                          ? 'bg-green-100'
+                          : 'bg-red-100'
+                      }`}>
+                        {transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution' ? (
+                          <TrendingUp className="text-green-600" size={18} />
+                        ) : (
+                          <ArrowRight className="text-red-600" size={18} />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-[var(--color-text-primary)]">
+                          {transaction.type === 'ica' ? 'ICA Contribution' :
+                           transaction.type === 'piggy' ? 'Piggy Savings' :
+                           transaction.type === 'contribution' ? 'Contribution' :
+                           transaction.type === 'withdrawal' ? 'Withdrawal' :
+                           'Transfer'}
+                        </div>
+                        <div className="text-xs text-[var(--color-text-secondary)]">
+                          {formatDate(transaction.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`font-semibold ${
+                      transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution'
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution' ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-[var(--color-text-secondary)]">
+                <Clock className="mx-auto mb-3 opacity-30" size={48} />
+                <p>No recent activity</p>
+                <button
+                  onClick={() => navigate('/dashboard/contribute')}
+                  className="mt-3 text-[#0066FF] hover:underline font-medium"
+                >
+                  Make your first contribution
+                </button>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">Recent Transactions</h3>
-        <div className="space-y-3">
-          {recentTransactions.slice(0, 5).map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${
-                  transaction.type === 'credit' ? 'bg-green-100' : 'bg-red-100'
-                }`}>
-                  <div className={`w-2 h-2 rounded-full ${
-                    transaction.type === 'credit' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-800">{transaction.description}</p>
-                  <p className="text-sm text-gray-500">{transaction.date}</p>
+      {/* Auto-Pay Setup Modal */}
+      <AnimatePresence>
+        {showAutoPayModal && (
+          <Modal
+            isOpen={showAutoPayModal}
+            onClose={handleDismissAutoPayModal}
+            title="Enable Automatic Payments?"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-[#E6F0FF] flex items-center justify-center">
+                  <Bell className="text-[#0066FF]" size={32} />
                 </div>
               </div>
-              <p className={`font-semibold ${
-                transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+              
+              <p className="text-center text-[var(--color-text-secondary)]">
+                Would you like to set up automatic monthly contributions of{' '}
+                <span className="font-bold text-[var(--color-text-primary)]">
+                  {formatCurrency(contributionsData?.data?.[0]?.amount || 0)}
+                </span>
+                ?
               </p>
+
+              <div className="bg-[var(--color-surface)] rounded-lg p-4 space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="text-green-500 mt-0.5">✓</div>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Never miss a contribution
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="text-green-500 mt-0.5">✓</div>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Build consistent savings habits
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="text-green-500 mt-0.5">✓</div>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    Cancel anytime in settings
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={handleDismissAutoPayModal}
+                  icon={<BellOff size={20} />}
+                >
+                  Not Now
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleEnableAutoPay}
+                  icon={<Bell size={20} />}
+                >
+                  Enable Auto-Pay
+                </Button>
+              </div>
             </div>
-          ))}
-        </div>
-        <button className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium">
-          View All Transactions
-        </button>
-      </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

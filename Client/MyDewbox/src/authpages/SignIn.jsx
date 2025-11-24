@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import AuthCarousel from "../components/AuthCarousel";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -6,11 +6,14 @@ import * as yup from "yup";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import clsx from "clsx";
+import { Phone, Lock } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
-import { login, checkAuth } from '../services/api';
+import { login } from '../services/api';
 import { useAuthStore } from '../store/authstore';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Img from '../assets/DMLogo.png';
 
 // Use phone as login identifier
 const schema = yup.object().shape({
@@ -22,10 +25,11 @@ const schema = yup.object().shape({
     .string()
     .min(6, "Password must be at least 6 characters")
     .required("Password is required"),
+  rememberMe: yup.boolean(),
 });
 
 const SignIn = () => {
-  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login: updateAuth } = useAuthStore();
 
@@ -35,9 +39,13 @@ const SignIn = () => {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
+    defaultValues: {
+      rememberMe: false,
+    },
   });
 
   const onSubmit = async (data) => {
+    setIsLoading(true);
     try {
       const result = await login(data.mobile, data.password);
       // Ensure the token is the user id and not undefined
@@ -46,87 +54,121 @@ const SignIn = () => {
         return;
       }
       localStorage.setItem('token', result.token);
-      // Debug: log token to console
-      console.log('Token set in localStorage:', result.token);
+      
+      // Handle remember me
+      if (data.rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      }
+      
       updateAuth(result.user);
       toast.success("Login successful!");
       navigate("/dashboard"); // Always go to dashboard after sign in
     } catch (error) {
-      console.error("Authentication error:", error);
       const errorMessage = error.response?.data?.message || "An error occurred during login. Please try again.";
       toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className='min-h-screen grid md:grid-cols-2 grid-cols-1'>
+      {/* Left side - Carousel (hidden on mobile) */}
       <div className="hidden md:block h-screen">
         <AuthCarousel />
       </div>
-      <div className='flex items-center justify-center p-4 md:p-8 bg-gray-50 min-h-screen overflow-y-auto'>
+      
+      {/* Right side - Sign In Form */}
+      <div className='flex items-center justify-center p-4 md:p-8 bg-[var(--color-background)] min-h-screen'>
         <motion.div
-          className="bg-white p-4 md:p-8 rounded-lg shadow-lg w-full max-w-md relative"
-          initial={{ opacity: 0, y: -50 }}
+          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
         >
-          <h1 className="text-2xl text-black font-bold text-center mb-2">Sign In</h1>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="form-group">
-              <label htmlFor="mobile" className="font-bold">
-                Phone Number
-              </label>
-              <input
+          {/* Logo (visible on mobile) */}
+          <div className="md:hidden flex flex-col items-center mb-8">
+            <img src={Img} alt="MyDewbox Logo" className="h-16 w-16 mb-3" />
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">MyDewbox</h1>
+          </div>
+
+          {/* Clean Card Container */}
+          <Card variant="elevated" padding="lg" className="bg-[var(--color-surface-elevated)]">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">Welcome back</h2>
+              <p className="text-[var(--color-text-secondary)]">Sign in to your account to continue</p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Phone Number Input */}
+              <Input
+                label="Phone Number"
                 type="text"
-                id="mobile"
+                placeholder="+1234567890"
+                icon={<Phone size={20} />}
+                error={errors.mobile?.message}
+                required
                 {...register("mobile")}
-                className={clsx(
-                  "input input-bordered w-full",
-                  errors.mobile && "border-red-500"
-                )}
-                placeholder="Enter your phone number"
               />
-              {errors.mobile && (
-                <p className="text-red-500 text-sm mt-1">{errors.mobile.message}</p>
-              )}
-            </div>
-            <div className="form-group relative">
-              <label htmlFor="password" className="font-bold">
-                Password
-              </label>
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                {...register("password")}
-                className={clsx(
-                  "input input-bordered w-full",
-                  errors.password && "border-red-500"
-                )}
+
+              {/* Password Input */}
+              <Input
+                label="Password"
+                type="password"
                 placeholder="Enter your password"
+                icon={<Lock size={20} />}
+                error={errors.password?.message}
+                required
+                {...register("password")}
               />
-              <span
-                className="absolute right-3 top-10 cursor-pointer text-gray-500"
-                onClick={() => setShowPassword(!showPassword)}
+
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register("rememberMe")}
+                    className="w-4 h-4 rounded border-[var(--color-border)] text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-[var(--color-text-primary)]">Remember me</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => toast.info("Password reset feature coming soon")}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              {/* Sign In Button */}
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isLoading}
               >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </span>
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-              )}
+                Sign In
+              </Button>
+            </form>
+
+            {/* Create Account Link */}
+            <div className="mt-6 text-center">
+              <p className="text-[var(--color-text-secondary)]">
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/subscribeto")}
+                  className="text-primary-600 hover:text-primary-700 font-semibold"
+                >
+                  Create account
+                </button>
+              </p>
             </div>
-            <button type="submit" className="btn btn-primary bg-blue-500 w-full">
-              Sign In
-            </button>
-          </form>
-          <p className="text-center text-black mt-4">
-            Don't have an account?{" "}
-            <span
-              className="text-blue-900 underline cursor-pointer"
-              onClick={() => navigate("/subscribeto")}
-            >
-              Subscribe Now 
-            </span>
-          </p>
+          </Card>
         </motion.div>
       </div>
     </div>

@@ -5,24 +5,23 @@ import { ToastContainer } from "react-toastify";
 import { motion } from "framer-motion";
 import "react-toastify/dist/ReactToastify.css";
 import RoutesConfig from "./routes";
+import { useThemeInit } from "./hooks/useThemeInit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      onError: (error) => {
-        console.error('Query Error:', error);
-      }
     },
     mutations: {
-      onError: (error) => {
-        console.error('Mutation Error:', error);
-      }
+      // Error handling done at component level
     }
   }
 });
 
 const App = () => {
+  // Initialize theme on app load
+  useThemeInit();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

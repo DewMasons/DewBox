@@ -12,10 +12,10 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    // Error logging removed for production security
     
     if (error.response?.status === 401) {
-      toast.error("Authentication failed. Please check your Webex credentials.");
+      toast.error("Authentication failed. Please check your credentials.");
     } else if (error.response?.status === 429) {
       toast.error("Too many attempts. Please try again later.");
     } else if (error.message.includes('Failed to send SMS')) {

@@ -1,14 +1,13 @@
 import React, { useState } from "react";
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastContainer } from "react-toastify";
+import { AnimatePresence } from "framer-motion";
 import "react-toastify/dist/ReactToastify.css";
 import clsx from "clsx";
-import dayjs from "dayjs";
-import { motion } from "framer-motion";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import Navbar from "./components/Navbar";
+import { MobileBottomNav, DesktopSidebar, PageTransition } from "./components/navigation";
+import SkipToMain from "./components/ui/SkipToMain";
+import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import Contribute from "./pages/Contribute";
 import Transactions from "./pages/Transactions";
 import Profile from "./pages/Profile";
@@ -17,35 +16,78 @@ import Homepage from "./pages/Home";
 const queryClient = new QueryClient();
 
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <div className="flex flex-1">
-          <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-          <motion.main
-            className={clsx(
-              "flex-1 p-8",
-              "bg-white",
-              "rounded-lg shadow-lg m-6",
-              "border border-gray-200"
-            )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Routes>
-              <Route path="/" element={<Homepage />} />
-              <Route path="contribute" element={<Contribute />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="profile" element={<Profile />} />
+      <div className="flex min-h-screen bg-[var(--color-background)]">
+        {/* Skip to main content link for keyboard navigation */}
+        <SkipToMain />
+        
+        {/* Desktop Sidebar */}
+        <DesktopSidebar 
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+
+        {/* Main Content Area */}
+        <main
+          id="main-content"
+          className={clsx(
+            "flex-1",
+            // Responsive margin offset for desktop sidebar
+            isSidebarCollapsed ? "md:ml-[80px]" : "md:ml-[280px]",
+            "pb-20 md:pb-0", // Bottom padding for mobile nav (64px + 16px)
+            "p-4 sm:p-6 md:p-8", // Responsive padding
+            "transition-all duration-300"
+          )}
+        >
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route
+                path="/"
+                element={
+                  <PageTransition>
+                    <Homepage />
+                  </PageTransition>
+                }
+              />
+              <Route
+                path="contribute"
+                element={
+                  <PageTransition>
+                    <Contribute />
+                  </PageTransition>
+                }
+              />
+              <Route
+                path="transactions"
+                element={
+                  <PageTransition>
+                    <Transactions />
+                  </PageTransition>
+                }
+              />
+              <Route
+                path="profile"
+                element={
+                  <PageTransition>
+                    <Profile />
+                  </PageTransition>
+                }
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </motion.main>
-        </div>
-        <Footer />
+          </AnimatePresence>
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav />
+
         <ToastContainer />
       </div>
     </QueryClientProvider>

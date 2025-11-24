@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'https://dewbox.onrender.com', // Updated to match backend port
+  baseURL: (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000',
 });
 
 // Helper to ensure no double slashes in endpoint
@@ -20,7 +20,19 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - redirect to login
+      localStorage.removeItem('token');
+      window.location.href = '/signin';
+    }
     return Promise.reject(error);
   }
 );
@@ -42,12 +54,9 @@ export const apiService = {
       }
       return response.data;
     } catch (error) {
-      // Log full error for debugging
       if (error.response) {
-        console.error('Registration error:', error.response.data);
         throw error.response.data;
       } else {
-        console.error('Registration error:', error);
         throw error;
       }
     }
@@ -63,13 +72,41 @@ export const apiService = {
   getSubscriber: () => api.get('/users/subscriber'), // New API call for subscriber info
 
   // Transactions
-  getTransactions: () => api.get('/users/transactions'),
-  createTransaction: (data: any) => api.post('/users/transactions', data),
-  contribute: (data: any) => api.post('/users/transactions/contribute', data),
+  getTransactions: async () => {
+    const response = await api.get('/users/transactions');
+    return response.data;
+  },
+  createTransaction: async (data: any) => {
+    const response = await api.post('/users/transactions', data);
+    console.log('Create transaction response:', response.data);
+    return response.data;
+  },
+  contribute: async (data: any) => {
+    const response = await api.post('/contributions', data);
+    return response.data;
+  },
+  getContributionInfo: async () => {
+    const response = await api.get('/contributions/info');
+    return response.data;
+  },
+  getContributionHistory: async () => {
+    const response = await api.get('/contributions/history');
+    return response.data;
+  },
+  updateContributionMode: async (mode: string) => {
+    const response = await api.patch('/contributions/settings', { mode });
+    return response.data;
+  },
 
   // Banks
-  getBanks: () => api.get(cleanUrl('/banks')),
-  // Add verifyBankAccount if backend supports it
+  getBanks: async () => {
+    const response = await api.get(cleanUrl('/banks'));
+    return response.data; // Paystack returns {status: true, data: [...]}
+  },
+  verifyBankAccount: async (data: any) => {
+    const response = await api.post(cleanUrl('/banks/verify-account'), data);
+    return response.data;
+  },
 };
 
 export const checkAuth = apiService.checkAuth;

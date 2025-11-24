@@ -5,9 +5,20 @@ import * as yup from "yup";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaSave, FaCalendarAlt } from "react-icons/fa";
-import clsx from "clsx";
+import { useNavigate } from "react-router-dom";
+import { 
+  User, Mail, Phone, MapPin, Save, Calendar, Upload, 
+  Shield, Bell, Settings, LogOut, Moon, Sun, Lock, Smartphone 
+} from "lucide-react";
 import { apiService } from "../services/api";
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import Toggle from "../components/ui/Toggle";
+import Skeleton, { SkeletonText } from "../components/ui/Skeleton";
+import { useAuthStore } from "../store/authstore";
+import { useThemeStore } from "../store/themeStore";
+import { useSettingsStore } from "../store/settingsStore";
 
 const schema = yup.object().shape({
   firstname: yup.string().required("First name is required"),
@@ -28,6 +39,23 @@ const schema = yup.object().shape({
 });
 
 const Profile = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
+  const { 
+    twoFactorEnabled, 
+    biometricEnabled, 
+    sessionTimeout, 
+    loginNotifications,
+    emailNotifications,
+    pushNotifications,
+    smsNotifications,
+    transactionAlerts,
+    marketingEmails,
+    securityAlerts,
+    updateSetting 
+  } = useSettingsStore();
+
   // Fetch subscriber info
   const { data: subscriberData, isLoading, error, isFetching } = useQuery({
     queryKey: ['subscriber'],
@@ -37,23 +65,7 @@ const Profile = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('=== PROFILE DEBUG INFO ===');
-    console.log('subscriberData:', subscriberData);
-    console.log('isLoading:', isLoading);
-    console.log('isFetching:', isFetching);
-    
-    if (subscriberData) {
-      console.log('subscriberData keys:', Object.keys(subscriberData));
-      console.log('subscriberData.subscriber:', subscriberData.subscriber);
-      
-      if (subscriberData.subscriber) {
-        console.log('subscriber keys:', Object.keys(subscriberData.subscriber));
-      }
-    }
-    console.log('=== END DEBUG INFO ===');
-  }, [subscriberData, isLoading, error]);
+  // Debug logging removed for production security
 
   // Memoize default values to prevent unnecessary re-renders
   const defaultValues = useMemo(() => {
@@ -64,10 +76,11 @@ const Profile = () => {
       firstname: subscriber.firstname || '',
       surname: subscriber.surname || '',
       mobile: subscriber.mobile || '',
+      email: subscriber.email || '',
       address1: subscriber.address1 || '',
       country: subscriber.country || '',
       state: subscriber.state || '',
-      dob: subscriber.dob || '',
+      dob: subscriber.dob ? new Date(subscriber.dob).toISOString().split('T')[0] : '',
       alternatePhone: subscriber.alternatePhone || '',
       currency: subscriber.currency || '',
       referral: subscriber.referral || '',
@@ -100,15 +113,39 @@ const Profile = () => {
 
   const mutation = useMutation({
     mutationFn: (data) => apiService.updateProfile(data),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // Show success toast notification
       toast.success("Profile updated successfully!");
+      
+      // Reset form with updated data if available
+      if (response?.data?.subscriber) {
+        const updatedSubscriber = response.data.subscriber;
+        reset({
+          firstname: updatedSubscriber.firstname || '',
+          surname: updatedSubscriber.surname || '',
+          mobile: updatedSubscriber.mobile || '',
+          address1: updatedSubscriber.address1 || '',
+          country: updatedSubscriber.country || '',
+          state: updatedSubscriber.state || '',
+          dob: updatedSubscriber.dob ? new Date(updatedSubscriber.dob).toISOString().split('T')[0] : '',
+          alternatePhone: updatedSubscriber.alternatePhone || '',
+          currency: updatedSubscriber.currency || '',
+          referral: updatedSubscriber.referral || '',
+          referralPhone: updatedSubscriber.referralPhone || '',
+          nextOfKinName: updatedSubscriber.nextOfKinName || '',
+          nextOfKinContact: updatedSubscriber.nextOfKinContact || '',
+          city: updatedSubscriber.city || '',
+          gender: updatedSubscriber.gender || '',
+          email: updatedSubscriber.email || '',
+        });
+      }
     },
     onError: (error) => {
+      // Handle error states with error messages
       const errorMessage = error?.response?.data?.message || 
                           error?.message || 
                           "Error updating profile";
       toast.error(errorMessage);
-      console.error('Profile update error:', error);
     }
   });
 
@@ -122,80 +159,189 @@ const Profile = () => {
     mutation.mutate(cleanData);
   };
 
+  const handleSignOut = () => {
+    // Clear auth token
+    localStorage.removeItem('token');
+    // Clear auth state
+    logout();
+    // Show success message
+    toast.success('Signed out successfully');
+    // Redirect to sign in page
+    navigate('/signin');
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file');
+    // Validate file type (images only)
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validImageTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
       return;
     }
 
     // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
       toast.error('Image size should be less than 5MB');
       return;
     }
 
+    // Convert image to base64 for API submission
     const reader = new FileReader();
     reader.onload = (event) => {
       const imageDataUrl = event.target?.result;
       if (imageDataUrl) {
+        // Set form value for submission
         setValue("profileImage", imageDataUrl);
+        
+        // Update image preview
         const imgElement = document.getElementById("profileImage");
         if (imgElement) {
           imgElement.src = imageDataUrl;
         }
+        
+        // Show success message
+        toast.success('Image uploaded successfully');
       }
     };
     reader.onerror = () => {
-      toast.error('Error reading image file');
+      // Display error messages for invalid files
+      toast.error('Error reading image file. Please try again.');
     };
     reader.readAsDataURL(file);
   };
 
-  // Define form fields array
-  const formFields = [
-    { name: 'firstname', icon: FaUser, label: 'First Name', required: true },
-    { name: 'surname', icon: FaUser, label: 'Surname', required: true },
-    { name: 'mobile', icon: FaPhone, label: 'Mobile', required: true },
-    { name: 'address1', icon: FaMapMarkerAlt, label: 'Address', required: true },
-    { name: 'country', icon: FaMapMarkerAlt, label: 'Country', required: true },
-    { name: 'state', icon: FaMapMarkerAlt, label: 'State', required: true },
-    { name: 'dob', icon: FaCalendarAlt, label: 'Date of Birth', required: true },
-    { name: 'alternatePhone', icon: FaPhone, label: 'Alternate Phone', required: false },
-    { name: 'currency', icon: FaUser, label: 'Currency', required: false },
-    { name: 'referral', icon: FaUser, label: 'Referral Code', required: false },
-    { name: 'referralPhone', icon: FaPhone, label: 'Referral Phone', required: false },
-    { name: 'nextOfKinName', icon: FaUser, label: 'Next of Kin Name', required: false },
-    { name: 'nextOfKinContact', icon: FaPhone, label: 'Next of Kin Contact', required: false },
-    { name: 'city', icon: FaMapMarkerAlt, label: 'City', required: false },
-    { name: 'gender', icon: FaUser, label: 'Gender', required: false }
+  // Define form fields organized by sections
+  const formSections = [
+    {
+      title: 'Personal Information',
+      fields: [
+        { name: 'firstname', icon: <User size={20} />, label: 'First Name', type: 'text', required: true },
+        { name: 'surname', icon: <User size={20} />, label: 'Surname', type: 'text', required: true },
+        { name: 'gender', icon: <User size={20} />, label: 'Gender', type: 'text', required: false },
+        { name: 'dob', icon: <Calendar size={20} />, label: 'Date of Birth', type: 'date', required: true },
+      ]
+    },
+    {
+      title: 'Contact Details',
+      fields: [
+        { name: 'mobile', icon: <Phone size={20} />, label: 'Mobile', type: 'text', required: true },
+        { name: 'alternatePhone', icon: <Phone size={20} />, label: 'Alternate Phone', type: 'text', required: false },
+        { name: 'email', icon: <Mail size={20} />, label: 'Email', type: 'email', required: false },
+      ]
+    },
+    {
+      title: 'Address',
+      fields: [
+        { name: 'address1', icon: <MapPin size={20} />, label: 'Address', type: 'text', required: true },
+        { name: 'city', icon: <MapPin size={20} />, label: 'City', type: 'text', required: false },
+        { name: 'state', icon: <MapPin size={20} />, label: 'State', type: 'text', required: true },
+        { name: 'country', icon: <MapPin size={20} />, label: 'Country', type: 'text', required: true },
+      ]
+    },
+    {
+      title: 'Emergency Contact',
+      fields: [
+        { name: 'nextOfKinName', icon: <User size={20} />, label: 'Next of Kin Name', type: 'text', required: false },
+        { name: 'nextOfKinContact', icon: <Phone size={20} />, label: 'Next of Kin Contact', type: 'text', required: false },
+      ]
+    },
+    {
+      title: 'Referral',
+      fields: [
+        { name: 'referral', icon: <User size={20} />, label: 'Referral Code', type: 'text', required: false },
+        { name: 'referralPhone', icon: <Phone size={20} />, label: 'Referral Phone', type: 'text', required: false },
+        { name: 'currency', icon: <User size={20} />, label: 'Currency', type: 'text', required: false },
+      ]
+    }
   ];
+
+  // Profile skeleton loader component
+  const ProfileSkeleton = () => (
+    <motion.section
+      className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8 w-full"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card variant="elevated" padding="none" className="overflow-hidden">
+        {/* Cover Section Skeleton */}
+        <div className="relative h-32 bg-gray-200 animate-pulse">
+          {/* Avatar Skeleton */}
+          <div className="absolute -bottom-16 w-full flex justify-center">
+            <Skeleton shape="circle" width="128px" height="128px" className="border-4 border-white" />
+          </div>
+        </div>
+        
+        {/* Profile Info Skeleton */}
+        <div className="pt-20 px-6 pb-6">
+          <div className="flex flex-col items-center mb-8">
+            <Skeleton width="200px" height="32px" className="mb-2" />
+            <Skeleton width="180px" height="20px" />
+          </div>
+          
+          {/* Form Sections Skeleton */}
+          <div className="space-y-8">
+            {[1, 2, 3, 4, 5].map((section) => (
+              <div key={section} className="space-y-4">
+                <Skeleton width="180px" height="24px" className="mb-4" />
+                <div className="space-y-4">
+                  {[1, 2, 3].map((field) => (
+                    <div key={field}>
+                      <Skeleton width="100px" height="16px" className="mb-2" />
+                      <Skeleton width="100%" height="48px" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            {/* Save Button Skeleton */}
+            <Skeleton width="100%" height="52px" className="rounded-md" />
+          </div>
+          
+          {/* Settings Sections Skeleton */}
+          <div className="mt-12 space-y-8">
+            {[1, 2, 3, 4].map((section) => (
+              <div key={section} className="space-y-4">
+                <Skeleton width="150px" height="24px" className="mb-4" />
+                <div className="space-y-4">
+                  {[1, 2].map((toggle) => (
+                    <div key={toggle} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <Skeleton width="180px" height="16px" className="mb-1" />
+                        <Skeleton width="250px" height="14px" />
+                      </div>
+                      <Skeleton width="48px" height="24px" className="rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </motion.section>
+  );
 
   // Handle loading state - wait until we actually have valid subscriber data
   const hasValidSubscriberData = subscriberData?.data?.subscriber && Object.keys(subscriberData.data.subscriber).length > 0;
   
   if (isLoading || isFetching || !hasValidSubscriberData) {
-    return (
-      <div className="flex flex-col justify-center items-center h-64 space-y-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="text-gray-600">Loading profile...</p>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   // Handle error state
   if (error) {
-    console.error('Profile query error:', error);
     return (
       <div className="flex flex-col justify-center items-center h-64 space-y-4">
         <p className="text-red-600">Error loading profile data</p>
-        <p className="text-sm text-gray-500">Check console for details</p>
+        <p className="text-sm text-gray-500">Please try again</p>
         <button 
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-[#0066FF] text-white rounded-lg hover:bg-[#0052CC]"
         >
           Retry
         </button>
@@ -203,16 +349,15 @@ const Profile = () => {
     );
   }
 
-  // Handle no data state - with more detailed logging
+  // Handle no data state
   if (!subscriberData?.data?.subscriber || Object.keys(subscriberData.data.subscriber).length === 0) {
-    console.warn('No valid subscriber data found. subscriberData:', subscriberData);
     return (
       <div className="flex flex-col justify-center items-center h-64 space-y-4">
         <p className="text-gray-600">No profile data found</p>
-        <p className="text-sm text-gray-500">Check console for API response details</p>
+        <p className="text-sm text-gray-500">Please try refreshing the page</p>
         <button 
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-[#0066FF] text-white rounded-lg hover:bg-[#0052CC]"
         >
           Refresh
         </button>
@@ -224,27 +369,32 @@ const Profile = () => {
 
   return (
     <motion.section
-      className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 w-full"
+      className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8 w-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-xl overflow-hidden border border-gray-200/50 w-full">
-        <div className="relative h-32 bg-gradient-to-r from-blue-600 to-indigo-600">
+      <Card variant="elevated" padding="none" className="overflow-hidden">
+        {/* Cover Section - 128px height with solid color */}
+        <div className="relative h-32 bg-[var(--color-primary)]">
+          {/* Avatar - 128px circle overlapping cover with 4px white border */}
           <div className="absolute -bottom-16 w-full flex justify-center">
-            <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white overflow-hidden bg-white">
-              <img
-                id="profileImage"
-                src={subscriber.profileImage || "https://via.placeholder.com/128x128/e0e7ff/6366f1?text=User"}
-                alt="Profile"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = "https://via.placeholder.com/128x128/e0e7ff/6366f1?text=User";
-                }}
-              />
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
+                <img
+                  id="profileImage"
+                  src={subscriber.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(subscriber.firstname || 'User')}&background=6366f1&color=fff&size=128`}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&size=128`;
+                  }}
+                />
+              </div>
+              {/* Upload overlay on hover */}
               <label
                 htmlFor="profilePicUpload"
-                className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
               >
                 <input
                   type="file"
@@ -253,20 +403,24 @@ const Profile = () => {
                   className="hidden"
                   onChange={handleImageChange}
                 />
-                <FaUser className="text-white text-xl" />
+                <Upload className="text-white" size={24} />
               </label>
             </div>
           </div>
         </div>
         
-        <div className="pt-20 px-4 md:px-8 pb-8 w-full">
-          <h2 className="text-2xl font-bold text-center mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            My Profile
+        {/* Profile Info Section */}
+        <div className="pt-20 px-6 pb-6">
+          {/* User name - 24px, bold, centered */}
+          <h2 className="text-2xl font-bold text-center mb-2 text-[var(--color-text-primary)]">
+            {subscriber.firstname} {subscriber.surname}
           </h2>
-          <p className="text-center text-gray-600 mb-8 flex items-center justify-center gap-2 flex-wrap">
-            <FaCalendarAlt />
+          
+          {/* Join date with calendar icon - 14px, gray-600, centered */}
+          <p className="text-sm text-[var(--color-text-secondary)] text-center mb-8 flex items-center justify-center gap-2">
+            <Calendar size={16} />
             <span>
-              Joined: {subscriber.createdAt
+              Member since {subscriber.createdAt
                 ? new Date(subscriber.createdAt).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -276,56 +430,192 @@ const Profile = () => {
             </span>
           </p>
           
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              {formFields.map(({ name, icon: Icon, label, required }) => (
-                <div key={name} className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <input
-                    {...register(name)}
-                    type={name === 'dob' ? 'date' : 'text'}
-                    className={clsx(
-                      "w-full text-gray-900 pl-10 pr-4 py-3 rounded-lg",
-                      "bg-white/80 backdrop-blur-sm",
-                      "border border-gray-200",
-                      "focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                      "outline-none transition-all duration-200",
-                      "placeholder-gray-400",
-                      errors[name] && "border-red-500 focus:ring-red-500"
-                    )}
-                    placeholder={`${label}${required ? ' *' : ''}`}
-                  />
-                  {errors[name] && (
-                    <p className="mt-1 text-sm text-red-500">{errors[name].message}</p>
-                  )}
+          {/* Profile Form with Sections */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* Render each section with 32px vertical spacing */}
+            {formSections.map((section, sectionIndex) => (
+              <div key={sectionIndex} className="space-y-4">
+                {/* Section Title */}
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)] border-b border-[var(--color-border)] pb-2">
+                  {section.title}
+                </h3>
+                
+                {/* Section Fields - Single column stacked layout */}
+                <div className="space-y-4">
+                  {section.fields.map(({ name, icon, label, type, required }) => (
+                    <Input
+                      key={name}
+                      label={label}
+                      type={type}
+                      icon={icon}
+                      required={required}
+                      error={errors[name]?.message}
+                      placeholder={label}
+                      {...register(name)}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
             
-            <motion.button
+            {/* Save Button - Full width, gradient, with Save icon */}
+            <Button
               type="submit"
-              disabled={mutation.isPending}
-              className={clsx(
-                "w-full px-6 py-3 rounded-lg",
-                "bg-gradient-to-r from-blue-600 to-indigo-600",
-                "text-white font-medium",
-                "hover:from-blue-700 hover:to-indigo-700",
-                "focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-                "transform transition-all duration-200",
-                "flex items-center justify-center gap-2",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
-              )}
-              whileHover={{ scale: mutation.isPending ? 1 : 1.02 }}
-              whileTap={{ scale: mutation.isPending ? 1 : 0.98 }}
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={mutation.isPending}
+              loadingText="Saving..."
+              icon={<Save size={20} />}
             >
-              <FaSave className="w-4 h-4" />
-              {mutation.isPending ? 'Saving...' : 'Save Changes'}
-            </motion.button>
+              Save Changes
+            </Button>
           </form>
+
+          {/* Settings Sections */}
+          <div className="mt-12 space-y-8">
+            {/* Account Settings */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
+                <Shield className="text-blue-600" size={20} />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Account</h3>
+              </div>
+              <div className="space-y-4">
+                <Toggle
+                  checked={twoFactorEnabled}
+                  onChange={(value) => updateSetting('twoFactorEnabled', value)}
+                  label="Two-Factor Authentication"
+                  description="Add an extra layer of security to your account"
+                />
+                <Toggle
+                  checked={biometricEnabled}
+                  onChange={(value) => updateSetting('biometricEnabled', value)}
+                  label="Biometric Login"
+                  description="Use fingerprint or face recognition to sign in"
+                />
+              </div>
+            </div>
+
+            {/* Security Settings */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
+                <Lock className="text-blue-600" size={20} />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Security</h3>
+              </div>
+              <div className="space-y-4">
+                <Toggle
+                  checked={sessionTimeout}
+                  onChange={(value) => updateSetting('sessionTimeout', value)}
+                  label="Auto Sign Out"
+                  description="Automatically sign out after 30 minutes of inactivity"
+                />
+                <Toggle
+                  checked={loginNotifications}
+                  onChange={(value) => updateSetting('loginNotifications', value)}
+                  label="Login Notifications"
+                  description="Get notified when someone signs into your account"
+                />
+              </div>
+            </div>
+
+            {/* Preferences */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
+                <Settings className="text-blue-600" size={20} />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Preferences</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <label className="text-sm font-medium text-[var(--color-text-primary)] block">
+                      Theme
+                    </label>
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                      Choose between light and dark mode
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-border)] transition-colors"
+                  >
+                    {theme === 'light' ? (
+                      <>
+                        <Moon size={18} className="text-[var(--color-text-primary)]" />
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">Dark</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sun size={18} className="text-[var(--color-text-primary)]" />
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">Light</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <Toggle
+                  checked={emailNotifications}
+                  onChange={(value) => updateSetting('emailNotifications', value)}
+                  label="Email Notifications"
+                  description="Receive updates and alerts via email"
+                />
+                <Toggle
+                  checked={pushNotifications}
+                  onChange={(value) => updateSetting('pushNotifications', value)}
+                  label="Push Notifications"
+                  description="Get real-time notifications on your device"
+                />
+                <Toggle
+                  checked={smsNotifications}
+                  onChange={(value) => updateSetting('smsNotifications', value)}
+                  label="SMS Notifications"
+                  description="Receive important alerts via text message"
+                />
+              </div>
+            </div>
+
+            {/* Notifications */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
+                <Bell className="text-blue-600" size={20} />
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Notifications</h3>
+              </div>
+              <div className="space-y-4">
+                <Toggle
+                  checked={transactionAlerts}
+                  onChange={(value) => updateSetting('transactionAlerts', value)}
+                  label="Transaction Alerts"
+                  description="Get notified about all account transactions"
+                />
+                <Toggle
+                  checked={securityAlerts}
+                  onChange={(value) => updateSetting('securityAlerts', value)}
+                  label="Security Alerts"
+                  description="Receive alerts about security-related activities"
+                />
+                <Toggle
+                  checked={marketingEmails}
+                  onChange={(value) => updateSetting('marketingEmails', value)}
+                  label="Marketing Emails"
+                  description="Receive promotional offers and updates"
+                />
+              </div>
+            </div>
+
+            {/* Sign Out Button */}
+            <div className="pt-4 border-t border-[var(--color-border)]">
+              <Button
+                variant="danger"
+                size="lg"
+                fullWidth
+                icon={<LogOut size={20} />}
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
     </motion.section>
   );
 };

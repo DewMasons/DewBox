@@ -30,11 +30,22 @@ class AuthService {
 
     async loginUser(mobile, password) {
         if (!mobile || !password) return { user: null, token: null };
+        
+        // Normalize mobile number format
+        // Convert +234XXXXXXXXXX to 0XXXXXXXXXX
+        if (mobile.startsWith('+234')) {
+            mobile = '0' + mobile.slice(4);
+        } else if (mobile.startsWith('234')) {
+            mobile = '0' + mobile.slice(3);
+        }
+        
+        console.log('[AUTH DEBUG] Normalized mobile:', mobile);
+        
         const user = await this.getUserByMobile(mobile);
-        console.log('[AUTH DEBUG] loginUser: user found:', user);
+        console.log('[AUTH DEBUG] loginUser: user found:', user ? 'Yes' : 'No');
         if (!user) return { user: null, token: null };
         const isMatch = await validatePassword(password, user.password);
-        console.log('[AUTH DEBUG] loginUser: password match:', isMatch, 'input:', password, 'hash:', user.password);
+        console.log('[AUTH DEBUG] loginUser: password match:', isMatch);
         if (!isMatch) return { user: null, token: null };
         // Use JWT as the token
         const token = jwt.sign({ id: user.id, mobile: user.mobile }, JWT_SECRET, { expiresIn: '7d' });

@@ -1,3 +1,47 @@
-node_modules/*
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables
 .env
-Client.zip
+.env.local
+.env.production
+.env.development
+*.env
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archives
+*.zip
+*.tar.gz
+
+# Database
+*.sql
+!scripts/*.sql
+
+# Temporary files
+*.tmp
+*.temp
+
+# Sensitive
+*.pem
+*.key

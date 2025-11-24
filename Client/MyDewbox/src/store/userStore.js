@@ -9,7 +9,7 @@ export const useAuthStore = create((set) => ({
       const response = await axios.get("/api/users");
       set({ users: response.data });
     } catch (error) {
-      console.error("Failed to fetch users:", error);
+      // Error handled silently for security
     }
   },
   clearAuth: () => set({ isSignedIn: false, users: {} }),

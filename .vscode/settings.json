@@ -16,5 +16,6 @@
             "connectionTimeout": 1,
             "askForPassword": true
         }
-    ]
+    ],
+    "javascript.autoClosingTags": false
 }

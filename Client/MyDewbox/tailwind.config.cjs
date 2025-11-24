@@ -7,7 +7,8 @@ module.exports = {
     theme: {
       extend: {
         fontFamily: {
-          inter: ['Inter', 'sans-serif'],
+          // Adds a `font-inter` utility class that maps to the Inter font
+          inter: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
         },
       },
     },

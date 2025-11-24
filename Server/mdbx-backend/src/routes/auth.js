@@ -69,9 +69,23 @@ router.post('/login', loginValidation, async (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
-  const { mobile, password } = req.body;
+  let { mobile, password } = req.body;
+  
   try {
+    // Normalize mobile number format
+    // Convert +234XXXXXXXXXX to 0XXXXXXXXXX
+    if (mobile.startsWith('+234')) {
+      mobile = '0' + mobile.slice(4);
+    } else if (mobile.startsWith('234')) {
+      mobile = '0' + mobile.slice(3);
+    }
+    
+    console.log('[AUTH DEBUG] Normalized mobile:', mobile);
+    
     const [rows] = await pool.query('SELECT * FROM user WHERE mobile = ?', [mobile]);
+    
+    console.log('[AUTH DEBUG] User found:', rows.length > 0 ? 'Yes' : 'No');
+    
     if (rows.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }

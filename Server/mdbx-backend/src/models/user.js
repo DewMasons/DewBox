@@ -71,11 +71,38 @@ class UserModel {
         return rows[0] || null;
     }
 
-    async updateProfile({ id, name, email, mobile, city, state, country, address1, gender }) {
-        // Update users table
-        await pool.query('UPDATE users SET name = ?, email = ?, mobile = ? WHERE id = ?', [name, email, mobile, id]);
-        // Update subscriber table
-        await pool.query('UPDATE subscriber SET city = ?, state = ?, country = ?, address1 = ?, gender = ? WHERE subscriber_id = ?', [city, state, country, address1, gender, id]);
+    async updateProfile({ id, email, mobile, firstname, surname, city, state, country, address1, gender, dob, alternatePhone, currency, referral, referralPhone, nextOfKinName, nextOfKinContact }) {
+        // Update user table (only fields that exist)
+        await pool.query('UPDATE user SET email = ?, mobile = ? WHERE id = ?', [email, mobile, id]);
+        
+        // Get subscriber_id from user table
+        const [userRows] = await pool.query('SELECT subscriber_id FROM user WHERE id = ?', [id]);
+        if (userRows.length === 0) {
+            throw new Error('User not found');
+        }
+        const subscriberId = userRows[0].subscriber_id;
+        
+        // Update subscribers table with all profile fields
+        const dobFormatted = dob ? new Date(dob).toISOString().slice(0, 10) : null;
+        await pool.query(
+            `UPDATE subscribers SET 
+                firstname = ?, 
+                surname = ?, 
+                city = ?, 
+                state = ?, 
+                country = ?, 
+                address1 = ?, 
+                gender = ?,
+                dob = ?,
+                alternatePhone = ?,
+                currency = ?,
+                referral = ?,
+                referralPhone = ?,
+                nextOfKinName = ?,
+                nextOfKinContact = ?
+            WHERE id = ?`,
+            [firstname, surname, city, state, country, address1, gender, dobFormatted, alternatePhone, currency, referral, referralPhone, nextOfKinName, nextOfKinContact, subscriberId]
+        );
     }
 }
 
