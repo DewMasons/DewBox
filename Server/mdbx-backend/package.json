@@ -9,6 +9,7 @@
     "build": "echo \"No build step needed for Express\"",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node src/index.js",
+    "init-db": "node scripts/init-database.js",
     "dev": "nodemon src/index.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
