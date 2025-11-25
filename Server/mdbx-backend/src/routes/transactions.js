@@ -21,7 +21,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { type, amount, bank, account, password, message, accountName, bankCode } = req.body;
+    const { type, amount, bank, account, password, message, accountName, bankCode, email, recipientEmail } = req.body;
     
     if (!type || !amount) {
       return res.status(400).json({ status: 'error', message: 'Type and amount are required' });

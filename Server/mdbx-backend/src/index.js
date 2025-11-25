@@ -7,6 +7,7 @@ const transactionRoutes = require('./routes/transactions');
 const bankRoutes = require('./routes/banks');
 const errorHandler = require('./middleware/errorHandler');
 const pool = require('./db');
+const { initializeContributionCron } = require('./services/contributionCron');
 
 const app = express();
 
@@ -179,6 +180,9 @@ async function startServer() {
     const connection = await pool.getConnection();
     console.log('✅ Database connected successfully!\n');
     connection.release();
+    
+    // Initialize cron jobs
+    initializeContributionCron();
     
     // Start the server
     app.listen(PORT, () => {

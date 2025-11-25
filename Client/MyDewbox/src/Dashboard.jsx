@@ -8,6 +8,8 @@ import clsx from "clsx";
 import { MobileBottomNav, DesktopSidebar, PageTransition } from "./components/navigation";
 import SkipToMain from "./components/ui/SkipToMain";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import FundWalletPrompt from "./components/FundWalletPrompt";
+import { useAuthStore } from "./store/authstore";
 import Contribute from "./pages/Contribute";
 import Transactions from "./pages/Transactions";
 import Profile from "./pages/Profile";
@@ -18,6 +20,7 @@ const queryClient = new QueryClient();
 const Dashboard = () => {
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { user } = useAuthStore();
   
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -25,6 +28,9 @@ const Dashboard = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen bg-[var(--color-background)]">
+        {/* First-time wallet funding prompt */}
+        <FundWalletPrompt balance={user?.balance || 0} />
+        
         {/* Skip to main content link for keyboard navigation */}
         <SkipToMain />
         
