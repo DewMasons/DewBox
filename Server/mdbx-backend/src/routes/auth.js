@@ -72,17 +72,44 @@ router.post('/login', loginValidation, async (req, res) => {
   let { mobile, password } = req.body;
   
   try {
-    // Normalize mobile number format
-    // Convert +234XXXXXXXXXX to 0XXXXXXXXXX
-    if (mobile.startsWith('+234')) {
-      mobile = '0' + mobile.slice(4);
-    } else if (mobile.startsWith('234')) {
-      mobile = '0' + mobile.slice(3);
+    // Try multiple mobile number formats to find the user
+    const mobileFormats = [];
+    
+    // Original format
+    mobileFormats.push(mobile);
+    
+    // Remove any spaces or dashes
+    const cleanMobile = mobile.replace(/[\s-]/g, '');
+    mobileFormats.push(cleanMobile);
+    
+    // If starts with +234, add 234 and 0 versions
+    if (cleanMobile.startsWith('+234')) {
+      mobileFormats.push(cleanMobile.slice(1)); // 234XXXXXXXXXX
+      mobileFormats.push('0' + cleanMobile.slice(4)); // 0XXXXXXXXXX
+    } 
+    // If starts with 234, add +234 and 0 versions
+    else if (cleanMobile.startsWith('234')) {
+      mobileFormats.push('+' + cleanMobile); // +234XXXXXXXXXX
+      mobileFormats.push('0' + cleanMobile.slice(3)); // 0XXXXXXXXXX
+    }
+    // If starts with 0, add 234 and +234 versions
+    else if (cleanMobile.startsWith('0')) {
+      mobileFormats.push('234' + cleanMobile.slice(1)); // 234XXXXXXXXXX
+      mobileFormats.push('+234' + cleanMobile.slice(1)); // +234XXXXXXXXXX
+    }
+    // If starts with 1 (US format), add +1 version
+    else if (cleanMobile.startsWith('1') && cleanMobile.length === 11) {
+      mobileFormats.push('+' + cleanMobile); // +1XXXXXXXXXX
     }
     
-    console.log('[AUTH DEBUG] Normalized mobile:', mobile);
+    console.log('[AUTH DEBUG] Trying mobile formats:', mobileFormats);
     
-    const [rows] = await pool.query('SELECT * FROM user WHERE mobile = ?', [mobile]);
+    // Try to find user with any of the formats
+    const placeholders = mobileFormats.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT * FROM user WHERE mobile IN (${placeholders})`,
+      mobileFormats
+    );
     
     console.log('[AUTH DEBUG] User found:', rows.length > 0 ? 'Yes' : 'No');
     
