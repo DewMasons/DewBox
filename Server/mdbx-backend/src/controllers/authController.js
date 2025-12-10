@@ -3,17 +3,11 @@ const authService = require('../services/authService');
 class AuthController {
     static async register(req, res) {
         try {
-            // Use the UserModel for all registration logic
-            const userModel = new (require('../models/user'))();
-            const newUser = await userModel.create(req.body);
-            // Use JWT as token
-            const jwt = require('jsonwebtoken');
-            const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
-            const token = jwt.sign({ id: newUser.id, mobile: newUser.mobile }, JWT_SECRET, { expiresIn: '7d' });
+            const { user, token } = await authService.createUser(req.body);
             return res.status(201).json({
                 status: 'success',
                 message: 'User registered successfully',
-                user: newUser,
+                user,
                 token
             });
         } catch (error) {

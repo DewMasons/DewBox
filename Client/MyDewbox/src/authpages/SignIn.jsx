@@ -14,6 +14,8 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Img from '../assets/DMLogo.png';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 // Use phone as login identifier
 const schema = yup.object().shape({
@@ -36,6 +38,8 @@ const SignIn = () => {
   const {
     register,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
@@ -54,12 +58,12 @@ const SignIn = () => {
         return;
       }
       localStorage.setItem('token', result.token);
-      
+
       // Handle remember me
       if (data.rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       }
-      
+
       updateAuth(result.user);
       toast.success("Login successful!");
       navigate("/dashboard"); // Always go to dashboard after sign in
@@ -77,7 +81,7 @@ const SignIn = () => {
       <div className="hidden md:block h-screen">
         <AuthCarousel />
       </div>
-      
+
       {/* Right side - Sign In Form */}
       <div className='flex items-center justify-center p-4 md:p-8 bg-[var(--color-background)] min-h-screen'>
         <motion.div
@@ -103,15 +107,25 @@ const SignIn = () => {
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Phone Number Input */}
-              <Input
-                label="Phone Number"
-                type="text"
-                placeholder="+1234567890"
-                icon={<Phone size={20} />}
-                error={errors.mobile?.message}
-                required
-                {...register("mobile")}
-              />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-[var(--color-text-primary)]">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <PhoneInput
+                    country={'ng'}
+                    value={getValues('mobile')}
+                    onChange={(phone) => setValue('mobile', phone, { shouldValidate: true })}
+                    inputClass="!w-full !h-12 !text-base !pl-12 !bg-[var(--color-background)] !border-[var(--color-border)] !text-[var(--color-text-primary)] !rounded-lg focus:!border-primary-500 focus:!ring-1 focus:!ring-primary-500 transition-colors"
+                    buttonClass="!bg-[var(--color-surface)] !border-[var(--color-border)] !rounded-l-lg hover:!bg-[var(--color-surface-hover)]"
+                    dropdownClass="!bg-[var(--color-surface-elevated)] !text-[var(--color-text-primary)]"
+                    containerClass="!w-full"
+                  />
+                  {errors.mobile && (
+                    <p className="text-sm text-red-500 mt-1">{errors.mobile.message}</p>
+                  )}
+                </div>
+              </div>
 
               {/* Password Input */}
               <Input

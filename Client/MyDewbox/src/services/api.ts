@@ -29,9 +29,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/signin';
+      // Check if the error is from the login endpoint itself
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+      if (!isLoginRequest) {
+        // Token expired or invalid - redirect to login
+        localStorage.removeItem('token');
+        window.location.href = '/signin';
+      }
     }
     return Promise.reject(error);
   }
@@ -53,7 +58,7 @@ export const apiService = {
         localStorage.setItem('token', response.data.token);
       }
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.response) {
         throw error.response.data;
       } else {

@@ -30,17 +30,24 @@ class AuthService {
 
     async loginUser(mobile, password) {
         if (!mobile || !password) return { user: null, token: null };
-        
+
         // Normalize mobile number format
-        // Convert +234XXXXXXXXXX to 0XXXXXXXXXX
-        if (mobile.startsWith('+234')) {
-            mobile = '0' + mobile.slice(4);
-        } else if (mobile.startsWith('234')) {
-            mobile = '0' + mobile.slice(3);
+        // Standardize to 234XXXXXXXXXX (International format without +)
+
+        // Remove all non-numeric characters (including +)
+        mobile = mobile.replace(/\D/g, '');
+
+        // If it starts with 0, replace with 234
+        if (mobile.startsWith('0')) {
+            mobile = '234' + mobile.slice(1);
         }
-        
+        // If it doesn't start with 234 and is 10 digits, assume it needs 234 (unlikely but safe)
+        if (!mobile.startsWith('234') && mobile.length === 10) {
+            mobile = '234' + mobile;
+        }
+
         console.log('[AUTH DEBUG] Normalized mobile:', mobile);
-        
+
         const user = await this.getUserByMobile(mobile);
         console.log('[AUTH DEBUG] loginUser: user found:', user ? 'Yes' : 'No');
         if (!user) return { user: null, token: null };

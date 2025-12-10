@@ -267,9 +267,22 @@ router.post('/', authenticateToken, async (req, res) => {
 
       case 'WALLET':
         // Wallet to wallet transfer
-        const [recipientRows] = await pool.query('SELECT * FROM user WHERE email = ?', [email]);
+        const recipientEmailAddress = email || recipientEmail;
+        
+        if (!recipientEmailAddress) {
+          return res.status(400).json({ status: 'error', message: 'Recipient email is required' });
+        }
+
+        const [recipientRows] = await pool.query('SELECT * FROM user WHERE email = ?', [recipientEmailAddress]);
         if (recipientRows.length === 0) {
           return res.status(404).json({ status: 'error', message: 'Recipient not found' });
+        }
+
+        const recipient = recipientRows[0];
+
+        // Check if trying to send to self
+        if (recipient.id === req.user.id) {
+          return res.status(400).json({ status: 'error', message: 'Cannot transfer to yourself' });
         }
 
         if (parseFloat(user.balance) < parseFloat(amount)) {
@@ -280,18 +293,29 @@ router.post('/', authenticateToken, async (req, res) => {
         await pool.query('UPDATE user SET balance = balance - ? WHERE id = ?', [amount, req.user.id]);
         
         // Add to recipient
-        await pool.query('UPDATE user SET balance = balance + ? WHERE id = ?', [amount, recipientRows[0].id]);
+        await pool.query('UPDATE user SET balance = balance + ? WHERE id = ?', [amount, recipient.id]);
 
-        // Record transaction with currency
+        // Record sender transaction
         await pool.query(
           'INSERT INTO transaction (id, type, amount, currency, status, userId, createdAt) VALUES (UUID(), ?, ?, ?, ?, ?, NOW(6))',
-          ['wallet_transfer', amount, 'NGN', 'completed', req.user.id]
+          ['wallet_transfer_sent', amount, 'NGN', 'completed', req.user.id]
+        );
+
+        // Record recipient transaction
+        await pool.query(
+          'INSERT INTO transaction (id, type, amount, currency, status, userId, createdAt) VALUES (UUID(), ?, ?, ?, ?, ?, NOW(6))',
+          ['wallet_transfer_received', amount, 'NGN', 'completed', recipient.id]
         );
 
         return res.json({
           status: 'success',
-          message: 'Transfer completed',
-          data: { recipient: email, amount, message }
+          message: `Transfer of ₦${amount} to ${recipient.name || recipient.email} completed successfully`,
+          data: { 
+            recipient: recipientEmailAddress, 
+            recipientName: recipient.name,
+            amount, 
+            message: message || 'Wallet transfer'
+          }
         });
 
       default:
