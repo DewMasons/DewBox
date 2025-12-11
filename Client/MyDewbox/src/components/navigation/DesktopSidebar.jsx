@@ -18,8 +18,8 @@ const DesktopSidebar = ({ isCollapsed = false, onToggleCollapse }) => {
 
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Home" },
-    { path: "/dashboard/transactions", icon: Receipt, label: "Transactions" },
     { path: "/dashboard/contribute", icon: PlusCircle, label: "Contribute" },
+    { path: "/dashboard/transactions", icon: Receipt, label: "Transactions" },
     { path: "/dashboard/profile", icon: User, label: "Profile" },
   ];
 

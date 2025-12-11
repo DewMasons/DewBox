@@ -51,6 +51,13 @@ class AuthService {
         const user = await this.getUserByMobile(mobile);
         console.log('[AUTH DEBUG] loginUser: user found:', user ? 'Yes' : 'No');
         if (!user) return { user: null, token: null };
+
+        // Debug logging for password comparison
+        console.log('[AUTH DEBUG] Input password:', password);
+        console.log('[AUTH DEBUG] Input password length:', password.length);
+        console.log('[AUTH DEBUG] Stored hash:', user.password);
+        console.log('[AUTH DEBUG] Stored hash starts with $2:', user.password ? user.password.startsWith('$2') : 'N/A');
+
         const isMatch = await validatePassword(password, user.password);
         console.log('[AUTH DEBUG] loginUser: password match:', isMatch);
         if (!isMatch) return { user: null, token: null };
