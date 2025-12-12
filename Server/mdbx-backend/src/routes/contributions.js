@@ -4,22 +4,46 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// Determine contribution type based on date and user settings
-const getContributionType = (userSettings) => {
+// Determine contribution type based on user's registration date and settings
+const getContributionType = (userSettings, registrationDate) => {
   const today = new Date();
-  const dayOfMonth = today.getDate();
+  const regDate = new Date(registrationDate);
   
   // If user has "all_ica" mode, always return ICA
   if (userSettings.contribution_mode === 'all_ica') {
     return 'ICA';
   }
   
-  // Days 2-11 are ICA period
-  if (dayOfMonth >= 2 && dayOfMonth <= 11) {
-    return 'ICA';
+  // Calculate days since registration in current month cycle
+  const regDay = regDate.getDate();
+  const currentDay = today.getDate();
+  
+  // Calculate the user's personal month cycle
+  // ICA period: registration day to (registration day + 9)
+  // PIGGY period: (registration day + 10) to end of cycle
+  
+  let icaStartDay = regDay;
+  let icaEndDay = regDay + 9;
+  
+  // Normalize for month boundaries
+  if (icaEndDay > 31) {
+    icaEndDay = icaEndDay - 31;
   }
   
-  // Days 12-31 (and day 1) are Piggy period
+  // Check if today falls in ICA period
+  if (icaStartDay <= icaEndDay) {
+    // Normal case: ICA period doesn't wrap around month
+    if (currentDay >= icaStartDay && currentDay <= icaEndDay) {
+      return 'ICA';
+    }
+  } else {
+    // Wrapped case: ICA period crosses month boundary
+    if (currentDay >= icaStartDay || currentDay <= icaEndDay) {
+      return 'ICA';
+    }
+  }
+  
+  // Otherwise, it's PIGGY period
   return 'PIGGY';
 };
 
@@ -34,7 +58,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Get user info and settings
     const [userRows] = await pool.query(
-      'SELECT u.*, s.contribution_mode, s.ica_balance, s.piggy_balance FROM user u LEFT JOIN subscribers s ON u.subscriber_id = s.id WHERE u.id = ?',
+      'SELECT u.*, s.contribution_mode, s.ica_balance, s.piggy_balance, s.createdAt as registrationDate FROM user u LEFT JOIN subscribers s ON u.subscriber_id = s.id WHERE u.id = ?',
       [req.user.id]
     );
     
@@ -43,7 +67,7 @@ router.post('/', authenticateToken, async (req, res) => {
     }
     
     const user = userRows[0];
-    const contributionType = getContributionType(user);
+    const contributionType = getContributionType(user, user.registrationDate || user.createdAt);
     const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
@@ -132,13 +156,19 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/info', authenticateToken, async (req, res) => {
   try {
     const [userRows] = await pool.query(
-      'SELECT contribution_mode FROM subscribers WHERE userId = ?',
+      'SELECT s.contribution_mode, s.createdAt as registrationDate, u.createdAt as userCreatedAt FROM subscribers s LEFT JOIN user u ON s.userId = u.id WHERE s.userId = ?',
       [req.user.id]
     );
     
     const userSettings = userRows[0] || { contribution_mode: 'auto' };
-    const contributionType = getContributionType(userSettings);
+    const registrationDate = userSettings.registrationDate || userSettings.userCreatedAt || new Date();
+    const contributionType = getContributionType(userSettings, registrationDate);
     const dayOfMonth = new Date().getDate();
+    const regDay = new Date(registrationDate).getDate();
+    
+    // Calculate ICA period for this user
+    const icaStartDay = regDay;
+    const icaEndDay = (regDay + 9) > 31 ? (regDay + 9 - 31) : (regDay + 9);
 
     res.json({
       status: 'success',
@@ -146,6 +176,9 @@ router.get('/info', authenticateToken, async (req, res) => {
         type: contributionType,
         mode: userSettings.contribution_mode,
         dayOfMonth,
+        registrationDay: regDay,
+        icaPeriod: `Day ${icaStartDay} to Day ${icaEndDay}`,
+        piggyPeriod: `Day ${icaEndDay + 1} to Day ${icaStartDay - 1}`,
         description: contributionType === 'ICA' 
           ? 'Investment Cooperative Account - Yearly commitment with interest'
           : 'Piggy Savings - Monthly savings in your wallet'
