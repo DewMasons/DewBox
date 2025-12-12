@@ -122,7 +122,7 @@ const Homepage = () => {
     );
   }
 
-  const totalSavings = userData.icaBalance + userData.piggyBalance;
+  const totalContributions = userData.icaBalance + userData.piggyBalance;
   const icaProgress = userData.icaBalance > 0 ? Math.min((userData.icaBalance / 100000) * 100, 100) : 0;
 
   return (
@@ -175,16 +175,16 @@ const Homepage = () => {
             </div>
           </motion.div>
 
-          {/* Total Savings Card */}
+          {/* Total Contributions Card */}
           <Card variant="elevated" padding="lg">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-medium text-[var(--color-text-secondary)]">
-                Total Savings
+                Total Contributions
               </div>
               <TrendingUp className="text-green-500" size={20} />
             </div>
             <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-              {formatCurrency(totalSavings)}
+              {formatCurrency(totalContributions)}
             </div>
             <div className="text-xs text-[var(--color-text-secondary)]">
               ICA + Piggy combined
@@ -192,11 +192,11 @@ const Homepage = () => {
           </Card>
         </div>
 
-        {/* Right Column - Savings Breakdown & Activity */}
+        {/* Right Column - Contributions Breakdown & Activity */}
         <div className="lg:col-span-2 space-y-4">
           {/* Piggy & ICA Cards */}
           <div className="grid md:grid-cols-2 gap-4">
-            {/* Piggy Savings Card */}
+            {/* Piggy Contributions Card */}
             <Card variant="elevated" padding="lg">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -205,7 +205,7 @@ const Homepage = () => {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-[var(--color-text-secondary)]">
-                      Piggy Savings
+                      Piggy Contributions
                     </div>
                     <div className="text-xs text-[var(--color-text-secondary)]">
                       Monthly
@@ -311,7 +311,7 @@ const Homepage = () => {
                       <div>
                         <div className="font-medium text-[var(--color-text-primary)]">
                           {transaction.type === 'ica' ? 'ICA Contribution' :
-                           transaction.type === 'piggy' ? 'Piggy Savings' :
+                           transaction.type === 'piggy' ? 'Piggy Contribution' :
                            transaction.type === 'contribution' ? 'Contribution' :
                            transaction.type === 'withdrawal' ? 'Withdrawal' :
                            'Transfer'}
@@ -381,7 +381,7 @@ const Homepage = () => {
                 <div className="flex items-start gap-2">
                   <div className="text-green-500 mt-0.5">✓</div>
                   <p className="text-sm text-[var(--color-text-secondary)]">
-                    Build consistent savings habits
+                    Build consistent contribution habits
                   </p>
                 </div>
                 <div className="flex items-start gap-2">

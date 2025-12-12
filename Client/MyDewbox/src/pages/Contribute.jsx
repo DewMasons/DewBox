@@ -53,22 +53,22 @@ const Contribute = () => {
             setContributionType(response.data?.type || '');
             setShowSuccess(true);
             const message = response.data?.type === 'ICA' 
-                ? "ICA savings added! Earning yearly interest 🎉"
-                : "Piggy savings added successfully! 🎉";
+                ? "ICA contribution added! Earning yearly interest 🎉"
+                : "Piggy contribution added successfully! 🎉";
             toast.success(message);
             queryClient.invalidateQueries(['transactions']);
             queryClient.invalidateQueries(['subscriber']);
             queryClient.invalidateQueries(['contributionInfo']);
         },
         onError: (error) => {
-            toast.error(error.response?.data?.message || "Failed to save. Please try again");
+            toast.error(error.response?.data?.message || "Failed to contribute. Please try again");
         },
     });
 
     const onSubmit = async (data) => {
         mutation.mutate({
             amount: data.amount,
-            description: data.description || 'Savings contribution',
+            description: data.description || 'Contribution',
         });
     };
 
@@ -95,12 +95,12 @@ const Contribute = () => {
                             Thank You! 🎉
                         </h2>
                         <p className="text-lg text-[var(--color-text-secondary)] mb-6">
-                            You've saved <span className="font-bold text-[#059669]">₦{contributionAmount.toLocaleString()}</span> successfully
+                            You've contributed <span className="font-bold text-[#059669]">₦{contributionAmount.toLocaleString()}</span> successfully
                         </p>
                         
                         <div className="bg-[var(--color-surface)] rounded-xl p-6 mb-6">
                             <p className="text-[var(--color-text-secondary)] mb-4">
-                                Your savings are now working for you. Earn returns and grow your wealth with the community.
+                                Your contribution is now working for you. Earn returns and grow your wealth with the community.
                             </p>
                             <div className="flex items-center justify-center gap-8 text-sm">
                                 <div className="text-center">
@@ -109,7 +109,7 @@ const Contribute = () => {
                                 </div>
                                 <div className="text-center">
                                     <Users className="text-[#0066FF] mx-auto mb-2" size={24} />
-                                    <p className="font-medium text-[var(--color-text-primary)]">Save Together</p>
+                                    <p className="font-medium text-[var(--color-text-primary)]">Contribute Together</p>
                                 </div>
                                 <div className="text-center">
                                     <Heart className="text-[#dc2626] mx-auto mb-2" size={24} />
@@ -124,7 +124,7 @@ const Contribute = () => {
                                 onClick={handleNewContribution}
                                 fullWidth
                             >
-                                Save More
+                                Contribute More
                             </Button>
                             <Button
                                 variant="primary"
@@ -153,10 +153,10 @@ const Contribute = () => {
                     <TrendingUp className="text-white" size={32} />
                 </div>
                 <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-                    Add to Savings
+                    Make a Contribution
                 </h1>
                 <p className="text-[var(--color-text-secondary)]">
-                    Save money and earn returns with the community
+                    Contribute and earn returns with the community
                 </p>
             </div>
 
@@ -176,7 +176,7 @@ const Contribute = () => {
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-bold text-[var(--color-text-primary)] mb-2">
-                                        {contributionInfo.type === 'ICA' ? '📈 ICA - Investment Cooperative' : '🐷 Piggy Savings'}
+                                        {contributionInfo.type === 'ICA' ? '📈 ICA - Investment Cooperative' : '🐷 Piggy Contribution'}
                                     </h3>
                                     <p className="text-sm text-[var(--color-text-secondary)] mb-3">
                                         {contributionInfo.description}
@@ -190,7 +190,7 @@ const Contribute = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <p>✓ Monthly savings</p>
+                                                <p>✓ Monthly contribution</p>
                                                 <p>✓ Stays in your wallet</p>
                                                 <p>✓ Withdraw at month end</p>
                                             </>
@@ -203,8 +203,8 @@ const Contribute = () => {
 
                     <Input
                         type="number"
-                        label="Savings Amount (₦)"
-                        placeholder="Enter amount to save"
+                        label="Contribution Amount (₦)"
+                        placeholder="Enter amount to contribute"
                         error={errors.amount?.message}
                         {...register("amount")}
                     />
@@ -212,14 +212,14 @@ const Contribute = () => {
                     <Input
                         type="text"
                         label="Note (Optional)"
-                        placeholder="Add a note about your savings"
+                        placeholder="Add a note about your contribution"
                         error={errors.description?.message}
                         {...register("description")}
                     />
 
                     <div className="bg-[#dcfce7] border border-[#059669] rounded-lg p-4">
                         <p className="text-sm text-[#059669] font-medium">
-                            💰 Your savings will earn returns and help you build wealth
+                            💰 Your contribution will earn returns and help you build wealth
                         </p>
                     </div>
 
@@ -231,14 +231,14 @@ const Contribute = () => {
                         disabled={!isValid || mutation.isPending}
                         icon={<TrendingUp size={20} />}
                     >
-                        {mutation.isPending ? 'Processing...' : 'Save Now'}
+                        {mutation.isPending ? 'Processing...' : 'Contribute Now'}
                     </Button>
                 </form>
             </Card>
 
             <div className="mt-6 text-center">
                 <p className="text-sm text-[var(--color-text-secondary)]">
-                    All savings are recorded and earn returns over time
+                    All contributions are recorded and earn returns over time
                 </p>
             </div>
         </motion.div>

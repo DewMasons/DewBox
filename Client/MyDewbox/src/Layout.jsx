@@ -209,11 +209,11 @@ const Layout = () => {
                 className="text-white"
               >
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-                  Save together,{" "}
+                  Contribute together,{" "}
                   <span className="block">grow together</span>
                 </h1>
                 <p className="text-lg sm:text-xl text-blue-100 mb-8 max-w-lg">
-                  Join a community of savers. Build wealth through eSusu, microsavings, 
+                  Join a community of contributors. Build wealth through eSusu, micro-contributions, 
                   and smart financial habits. Start your journey today.
                 </p>
                 <button
@@ -348,7 +348,7 @@ const Layout = () => {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
-                              Piggy Savings
+                              Piggy Contributions
                             </p>
                             <p className="text-xs text-gray-500">Today, 09:15</p>
                           </div>
@@ -399,7 +399,7 @@ const Layout = () => {
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
               Spend smartly, send quickly, sort your salary automatically, and
-              watch your savings grow — all with MyDewbox.
+              watch your contributions grow — all with MyDewbox.
             </p>
           </motion.div>
 
@@ -420,13 +420,13 @@ const Layout = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-2xl font-bold text-gray-900">₦45,800</p>
-                    <p className="text-sm text-gray-500">Piggy Savings</p>
+                    <p className="text-sm text-gray-500">Piggy Contributions</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-gray-100 rounded-full"></div>
-                    <span className="text-gray-600">Auto-save</span>
+                    <span className="text-gray-600">Auto-contribute</span>
                   </div>
                   <span className="text-cyan-600 font-medium">+₦5,000</span>
                 </div>
@@ -548,9 +548,9 @@ const Layout = () => {
                 icon: Wallet,
               },
               {
-                title: "Microsavings",
+                title: "Micro-contributions",
                 description:
-                  "Save small amounts regularly and watch your money grow",
+                  "Contribute small amounts regularly and watch your money grow",
                 icon: PiggyBank,
               },
               {
