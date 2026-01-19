@@ -47,7 +47,7 @@ const Toggle = ({
             damping: 30
           }}
           className={`
-            inline-block h-4 w-4 transform rounded-full bg-white shadow-lg
+            inline-block h-4 w-4 transform rounded-full bg-[var(--color-surface)] shadow-lg
             ${checked ? 'translate-x-6' : 'translate-x-1'}
           `}
         />

@@ -259,7 +259,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                     <select
                                         value={filters.type}
                                         onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                        className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="CONTRIBUTION">Contribution</option>
@@ -277,7 +277,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                     <select
                                         value={filters.status}
                                         onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                        className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150"
                                     >
                                         <option value="all">All Status</option>
                                         <option value="COMPLETED">Completed</option>
@@ -294,7 +294,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                     <select
                                         value={filters.dateRange}
                                         onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                        className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150"
                                     >
                                         <option value="all">All Time</option>
                                         <option value="today">Today</option>

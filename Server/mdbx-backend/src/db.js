@@ -16,6 +16,12 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  // Add connection timeout and keep-alive settings for Railway
+  connectTimeout: 60000, // 60 seconds
+  acquireTimeout: 60000, // 60 seconds
+  timeout: 60000, // 60 seconds
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 };
 
 // Add SSL configuration for Railway and other cloud providers
@@ -27,10 +33,24 @@ if (process.env.DB_HOST && !process.env.DB_HOST.includes('localhost')) {
 
 const pool = mysql.createPool(dbConfig);
 
+// Add error handler for pool
+pool.on('error', (err) => {
+  console.error('❌ Database pool error:', err);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('🔄 Database connection lost, pool will reconnect automatically');
+  }
+});
+
 // Test connection on startup
 pool.getConnection()
   .then(connection => {
     console.log('🔌 Database pool created successfully');
+    console.log('📊 Pool config:', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.database,
+      connectionLimit: dbConfig.connectionLimit
+    });
     connection.release();
   })
   .catch(err => {

@@ -2,7 +2,15 @@ const jwt = require('jsonwebtoken');
 const UserModel = require("../models/user");
 const { hashPassword, validatePassword } = require("../utils/hash");
 const userModel = new UserModel();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+
+// ✅ SECURITY FIX: No fallback - JWT_SECRET must be set
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('❌ CRITICAL SECURITY ERROR: JWT_SECRET is not set in environment variables!');
+  console.error('Generate one with: openssl rand -base64 64');
+  process.exit(1);
+}
 
 class AuthService {
     async createUser(userData) {
@@ -18,8 +26,16 @@ class AuthService {
         userData.fullName = userData.fullName || userData.name || `${userData.firstname || ''} ${userData.surname || ''}`.trim();
         const newUser = await userModel.create(userData);
         if (!newUser) throw new Error('Failed to create user');
-        // Use JWT as the token
-        const token = jwt.sign({ id: newUser.id, mobile: newUser.mobile }, JWT_SECRET, { expiresIn: '7d' });
+        // ✅ SECURITY: Generate JWT with expiration
+        const token = jwt.sign(
+            { 
+                id: newUser.id, 
+                mobile: newUser.mobile,
+                iat: Math.floor(Date.now() / 1000)
+            }, 
+            JWT_SECRET, 
+            { expiresIn: '7d' } // Token expires in 7 days
+        );
         if (!token) throw new Error('Failed to generate token');
         return { user: newUser, token };
     }
@@ -61,8 +77,17 @@ class AuthService {
         const isMatch = await validatePassword(password, user.password);
         console.log('[AUTH DEBUG] loginUser: password match:', isMatch);
         if (!isMatch) return { user: null, token: null };
-        // Use JWT as the token
-        const token = jwt.sign({ id: user.id, mobile: user.mobile }, JWT_SECRET, { expiresIn: '7d' });
+        
+        // ✅ SECURITY: Generate JWT with expiration
+        const token = jwt.sign(
+            { 
+                id: user.id, 
+                mobile: user.mobile,
+                iat: Math.floor(Date.now() / 1000)
+            }, 
+            JWT_SECRET, 
+            { expiresIn: '7d' } // Token expires in 7 days
+        );
         return { user, token };
     }
 }

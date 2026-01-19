@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const authRouter = require('./routes/authRouter');
 const userRoutes = require('./routes/userRoutes');
 const transactionRoutes = require('./routes/transactions');
@@ -10,6 +11,33 @@ const pool = require('./db');
 const { initializeContributionCron } = require('./services/contributionCron');
 
 const app = express();
+
+// ✅ SECURITY: Add security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// ✅ SECURITY: Enforce HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(`https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+}
 
 // CORS configuration
 app.use(cors({
@@ -23,6 +51,14 @@ app.use(express.json());
 
 const contributionRoutes = require('./routes/contributions');
 const adminRoutes = require('./routes/admin');
+const subscriberRoutes = require('./routes/subscribers');
+const coopRoutes = require('./routes/coops');
+const walletRoutes = require('./routes/wallets');
+const grantRoutes = require('./routes/grants');
+const lookupRoutes = require('./routes/lookups');
+const locationRoutes = require('./routes/locations');
+const apiDocsRoutes = require('./routes/apiDocs');
+const homeRoutes = require('./routes/home');
 
 // Auth routes
 app.use('/auth', authRouter);
@@ -36,6 +72,22 @@ app.use('/admin', adminRoutes);
 app.use('/users', userRoutes);
 // Bank routes
 app.use('/banks', bankRoutes);
+// Subscriber routes
+app.use('/subscribers', subscriberRoutes);
+// Coop routes
+app.use('/coops', coopRoutes);
+// Wallet routes
+app.use('/wallets', walletRoutes);
+// Grant routes
+app.use('/grants', grantRoutes);
+// Lookup routes (reference data)
+app.use('/lookups', lookupRoutes);
+// Location routes (countries, states, cities, LGAs)
+app.use('/locations', locationRoutes);
+// API Documentation
+app.use('/api-docs', apiDocsRoutes);
+// Homepage
+app.use('/', homeRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -197,7 +249,12 @@ async function startServer() {
       console.log('  • POST /auth/* - Authentication routes');
       console.log('  • GET  /users/* - User routes');
       console.log('  • GET  /users/transactions/* - Transaction routes');
-      console.log('  • GET  /banks/* - Bank routes\n');
+      console.log('  • GET  /banks/* - Bank routes');
+      console.log('  • GET  /subscribers/* - Subscriber routes');
+      console.log('  • GET  /coops/* - Cooperative routes');
+      console.log('  • GET  /wallets/* - Wallet routes');
+      console.log('  • GET  /grants/* - Grant routes');
+      console.log('  • GET  /lookups/* - Lookup/Reference data routes\n');
       console.log('Press Ctrl+C to stop the server\n');
     });
   } catch (error) {

@@ -4,6 +4,11 @@ const pool = require('../db');
 
 const router = express.Router();
 
+// Test route to verify admin routes are loading
+router.get('/test', (req, res) => {
+  res.json({ status: 'success', message: 'Admin routes are working!' });
+});
+
 // Admin middleware
 const isAdmin = async (req, res, next) => {
   const adminId = process.env.ADMIN_USER_ID;
@@ -141,6 +146,107 @@ router.get('/wallet', authenticateToken, isAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin wallet error:', err);
     res.status(500).json({ status: 'error', message: 'Failed to get admin wallet' });
+  }
+});
+
+// Run database migration to add esusu_balance column (temporary - no auth for testing)
+router.get('/migrate/esusu-balance-test', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    try {
+      // Check if column already exists
+      const [columns] = await connection.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscribers' AND COLUMN_NAME = 'esusu_balance'"
+      );
+
+      if (columns.length > 0) {
+        connection.release();
+        return res.json({
+          status: 'success',
+          message: 'esusu_balance column already exists',
+          alreadyExists: true
+        });
+      }
+
+      // Add the column
+      await connection.query(
+        "ALTER TABLE subscribers ADD COLUMN esusu_balance DECIMAL(15,2) DEFAULT 0.00 COMMENT 'Esusu contribution balance'"
+      );
+      
+      // Update existing records
+      await connection.query(
+        "UPDATE subscribers SET esusu_balance = 0.00 WHERE esusu_balance IS NULL"
+      );
+
+      connection.release();
+
+      res.json({
+        status: 'success',
+        message: 'esusu_balance column added successfully',
+        alreadyExists: false
+      });
+    } catch (error) {
+      connection.release();
+      throw error;
+    }
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to run migration',
+      error: err.message 
+    });
+  }
+});
+
+// Run database migration to add esusu_balance column
+router.post('/migrate/esusu-balance', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    try {
+      // Check if column already exists
+      const [columns] = await connection.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscribers' AND COLUMN_NAME = 'esusu_balance'"
+      );
+
+      if (columns.length > 0) {
+        return res.json({
+          status: 'success',
+          message: 'esusu_balance column already exists',
+          alreadyExists: true
+        });
+      }
+
+      // Add the column
+      await connection.query(
+        "ALTER TABLE subscribers ADD COLUMN esusu_balance DECIMAL(15,2) DEFAULT 0.00 COMMENT 'Esusu contribution balance'"
+      );
+      
+      // Update existing records
+      await connection.query(
+        "UPDATE subscribers SET esusu_balance = 0.00 WHERE esusu_balance IS NULL"
+      );
+
+      connection.release();
+
+      res.json({
+        status: 'success',
+        message: 'esusu_balance column added successfully',
+        alreadyExists: false
+      });
+    } catch (error) {
+      connection.release();
+      throw error;
+    }
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to run migration',
+      error: err.message 
+    });
   }
 });
 

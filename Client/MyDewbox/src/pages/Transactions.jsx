@@ -64,44 +64,45 @@ const walletSchema = yup.object().shape({
         .required("Password is required for security"),
 });
 
-const TransactionOption = ({ type, icon: Icon, label, gradient, onClick, isActive }) => (
-    <motion.div
-        className={`p-7 rounded-3xl cursor-pointer bg-[var(--color-surface-elevated)] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-[var(--color-border)] transition-all duration-200 ${
-            isActive ? 'ring-2 ring-[#0066FF] border-[#0066FF]' : ''
+const TransactionOption = ({ type, icon: Icon, label, color, onClick, isActive }) => (
+    <motion.button
+        type="button"
+        className={`p-4 rounded-lg cursor-pointer bg-[var(--color-surface)] border transition-all duration-150 text-left w-full ${
+            isActive ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/10 shadow-sm' : 'border-[var(--color-border)] hover:border-[var(--color-primary)] hover:shadow-sm'
         }`}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
         onClick={onClick}
     >
-        <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${gradient}`}>
-                <Icon className="text-white" size={26} />
+        <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0`} style={{ backgroundColor: `${color}10` }}>
+                <Icon style={{ color }} size={20} strokeWidth={2} />
             </div>
-            <span className="font-semibold text-[var(--color-text-primary)] text-lg">{label}</span>
+            <span className="font-medium text-[var(--color-text-primary)] text-sm">{label}</span>
         </div>
-    </motion.div>
+    </motion.button>
 );
 
 const TransactionsSkeleton = () => (
     <motion.section
-        className="max-w-4xl mx-auto p-4"
+        className="max-w-3xl mx-auto p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.15 }}
     >
-        <div className="flex items-center justify-between mb-8">
-            <Skeleton width="200px" height="32px" />
-            <Skeleton width="140px" height="44px" className="rounded-md" />
+        <div className="mb-6">
+            <Skeleton width="180px" height="28px" className="mb-2" />
+            <Skeleton width="240px" height="16px" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             {[1, 2, 3, 4].map((item) => (
-                <Card key={item} variant="elevated" padding="lg">
-                    <div className="flex items-center gap-4">
-                        <Skeleton shape="circle" width="48px" height="48px" />
-                        <Skeleton width="120px" height="20px" />
+                <div key={item} className="p-4 rounded-lg border border-[var(--color-border)] bg-white">
+                    <div className="flex items-center gap-3">
+                        <Skeleton shape="square" width="40px" height="40px" className="rounded-lg" />
+                        <Skeleton width="100px" height="16px" />
                     </div>
-                </Card>
+                </div>
             ))}
         </div>
     </motion.section>
@@ -116,8 +117,7 @@ const transactionOptions = [
         icon: Wallet, 
         label: 'Fund Wallet',
         title: 'Fund Wallet',
-        gradient: 'bg-[#0066FF]',
-        color: '#0066FF'
+        color: '#0077B6'
     },
     { 
         id: 'withdraw',
@@ -125,7 +125,6 @@ const transactionOptions = [
         icon: Building2, 
         label: 'Withdraw',
         title: 'Withdraw Funds',
-        gradient: 'bg-[#059669]',
         color: '#059669'
     },
     { 
@@ -134,7 +133,6 @@ const transactionOptions = [
         icon: ArrowLeftRight, 
         label: 'Pay to Bank',
         title: 'Pay to Bank Account',
-        gradient: 'bg-[#8b5cf6]',
         color: '#8b5cf6'
     },
     { 
@@ -143,7 +141,6 @@ const transactionOptions = [
         icon: Send, 
         label: 'Send to User',
         title: 'Send to User',
-        gradient: 'bg-[#f59e0b]',
         color: '#f59e0b'
     }
 ];
@@ -466,16 +463,17 @@ const Transactions = () => {
                 return (
                     <motion.div 
                         key="deposit-form"
-                        className="mt-8 max-w-lg mx-auto"
+                        className="mt-6"
                         {...formProps}
                     >
-                        <Card variant="elevated" padding="lg">
+                        <Card variant="elevated" padding="md">
                             <form onSubmit={handleSubmit((data) => handleTransaction(data, 'deposit'))}>
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="w-14 h-14 rounded-2xl bg-[#0066FF] flex items-center justify-center">
-                                        <Wallet className="text-white" size={26} />
+                                {/* Compact header */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0077B610' }}>
+                                        <Wallet style={{ color: '#0077B6' }} size={20} strokeWidth={2} />
                                     </div>
-                                    <h3 className="text-3xl font-bold text-[var(--color-text-primary)]">
+                                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                                         Fund Wallet
                                     </h3>
                                 </div>
@@ -484,61 +482,37 @@ const Transactions = () => {
                                     <Input
                                         type="number"
                                         label="Amount (₦)"
-                                        placeholder="Enter amount to fund"
+                                        placeholder="Enter amount"
                                         error={errors.amount?.message}
                                         {...register("amount")}
                                     />
-                                    <div className="bg-[var(--color-surface)] rounded-lg p-4">
-                                        <p className="text-sm text-[var(--color-text-secondary)]">
-                                            💡 You'll be redirected to Paystack to complete your payment securely
+                                    <div className="bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3">
+                                        <p className="text-xs text-[var(--color-text-secondary)]">
+                                            Secure payment via Paystack • Card, Bank, USSD, Opay, QR
                                         </p>
                                     </div>
                                 </div>
                                 
-                                <div className="mt-6 flex gap-3">
+                                <div className="mt-4 flex gap-2">
                                     <Button 
                                         type="button" 
                                         variant="secondary" 
+                                        size="md"
                                         onClick={() => setActiveTransaction(null)}
-                                        icon={<ArrowLeft size={20} />}
+                                        icon={<ArrowLeft size={18} />}
                                     >
                                         Back
                                     </Button>
                                     <Button 
                                         type="submit" 
                                         variant="primary" 
+                                        size="md"
                                         fullWidth
                                         loading={depositMutation.isPending}
                                         disabled={!isValid || depositMutation.isPending}
                                     >
-                                        {depositMutation.isPending ? 'Opening Payment...' : 'Fund Wallet'}
+                                        {depositMutation.isPending ? 'Opening...' : 'Continue'}
                                     </Button>
-                                </div>
-                                
-                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-                                    <p className="text-sm font-medium text-[var(--color-text-primary)] text-center mb-3">
-                                        🔒 Secure payment powered by Paystack
-                                    </p>
-                                    <p className="text-xs text-[var(--color-text-secondary)] text-center mb-3">
-                                        Choose your preferred payment method on the next page
-                                    </p>
-                                    <div className="flex items-center justify-center gap-2 flex-wrap">
-                                        <div className="px-3 py-1.5 bg-[var(--color-surface)] rounded-lg text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                                            💳 Card
-                                        </div>
-                                        <div className="px-3 py-1.5 bg-[var(--color-surface)] rounded-lg text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                                            🏦 Bank
-                                        </div>
-                                        <div className="px-3 py-1.5 bg-[var(--color-surface)] rounded-lg text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                                            📱 USSD
-                                        </div>
-                                        <div className="px-3 py-1.5 bg-[var(--color-surface)] rounded-lg text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                                            💰 Opay
-                                        </div>
-                                        <div className="px-3 py-1.5 bg-[var(--color-surface)] rounded-lg text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                                            📲 QR
-                                        </div>
-                                    </div>
                                 </div>
                             </form>
                         </Card>
@@ -564,13 +538,13 @@ const Transactions = () => {
                                 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
                                             Bank
                                         </label>
                                         <select
                                             {...register("bank")}
                                             disabled={isLoading}
-                                            className="w-full px-4 py-3 rounded-md border border-neutral-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-200"
+                                            className="w-full px-4 py-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150"
                                         >
                                             <option value="">Select a bank</option>
                                             {banks?.data?.map((bank, idx) => (
@@ -658,13 +632,13 @@ const Transactions = () => {
                                 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
                                             Bank
                                         </label>
                                         <select
                                             {...register("bank")}
                                             disabled={isLoading}
-                                            className="w-full px-4 py-3 rounded-md border border-neutral-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-200"
+                                            className="w-full px-4 py-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150"
                                         >
                                             <option value="">Select a bank</option>
                                             {banks?.data?.map((bank, idx) => (
@@ -915,47 +889,49 @@ const Transactions = () => {
 
     return (
         <motion.section
-            className="max-w-5xl mx-auto"
+            className="max-w-3xl mx-auto p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.15 }}
         >
+            {/* Header - Compact & Clean */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">Transactions</h1>
+                <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">Transactions</h1>
+                <p className="text-sm text-[var(--color-text-secondary)]">Manage your transactions</p>
+            </div>
                 
-                {/* Tab Navigation */}
-                <div className="flex gap-2 bg-gray-100 p-1 rounded-xl inline-flex">
-                    <button
-                        onClick={() => setShowHistory(false)}
-                        className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                            !showHistory 
-                                ? 'bg-white text-gray-900 shadow-sm' 
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        New Transaction
-                    </button>
-                    <button
-                        onClick={() => setShowHistory(true)}
-                        className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                            showHistory 
-                                ? 'bg-white text-gray-900 shadow-sm' 
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        History
-                    </button>
-                </div>
+            {/* Tab Navigation - Minimalist segmented control */}
+            <div className="flex gap-1 bg-[var(--color-surface)] p-1 rounded-lg inline-flex mb-6 border border-[var(--color-border)]">
+                <button
+                    onClick={() => setShowHistory(false)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                        !showHistory 
+                            ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm' 
+                            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                    }`}
+                >
+                    New Transaction
+                </button>
+                <button
+                    onClick={() => setShowHistory(true)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                        showHistory 
+                            ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm' 
+                            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                    }`}
+                >
+                    History
+                </button>
             </div>
 
             <AnimatePresence mode="wait">
                 {showHistory ? (
                     <motion.div
                         key="history"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
                     >
                         <TransactionHistory
                             transactions={transactionsData?.data || []}
@@ -965,21 +941,22 @@ const Transactions = () => {
                 ) : (
                     <motion.div
                         key="options"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.15 }}
                     >
-                        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 ${
-                            activeTransaction ? 'opacity-70' : ''
+                        {/* Transaction Options - Compact grid */}
+                        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 ${
+                            activeTransaction ? 'opacity-50 pointer-events-none' : ''
                         }`}>
-                            {transactionOptions.map(({ id, type, icon, label, gradient }) => (
+                            {transactionOptions.map(({ id, type, icon, label, color }) => (
                                 <TransactionOption
                                     key={id}
                                     type={type}
                                     icon={icon}
                                     label={label}
-                                    gradient={gradient}
+                                    color={color}
                                     onClick={() => setActiveTransaction(id)}
                                     isActive={activeTransaction === id}
                                 />

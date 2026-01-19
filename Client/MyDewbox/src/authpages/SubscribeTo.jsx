@@ -50,12 +50,14 @@ const step4Schema = yup.object().shape({
   city: yup.string().required("City is required"),
   state: yup.string().required("State/Region is required"),
   country: yup.string().required("Country is required"),
+  lga: yup.string().required("LGA is required").min(2),
   currency: yup.string().required("Currency is required"),
 });
 
 const step5Schema = yup.object().shape({
   nextOfKinName: yup.string().required("Next of kin name is required").min(2),
   nextOfKinContact: yup.string().required("Next of kin contact is required").matches(phoneRegex, "Invalid phone number"),
+  joinEsusu: yup.string().required("Please select an option"),
   referral: yup.string().optional(),
   referralPhone: yup.string().optional(),
 });
@@ -66,6 +68,13 @@ const SubscribeTo = () => {
   const [formData, setFormData] = useState({});
   const navigate = useNavigate();
   const { login: updateAuth } = useAuthStore();
+
+  // Location data states
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [lgas, setLgas] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
 
   const totalSteps = 5;
 
@@ -87,10 +96,134 @@ const SubscribeTo = () => {
     formState: { errors },
     trigger,
     getValues,
+    watch,
+    setValue,
   } = useForm({
     resolver: yupResolver(getSchema()),
     mode: "onChange",
   });
+
+  // Watch for country, state changes to load dependent data
+  const selectedCountry = watch("country");
+  const selectedState = watch("state");
+
+  // Load countries on mount
+  React.useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        setLoadingLocations(true);
+        const response = await apiService.getCountries();
+        if (response.success && response.data) {
+          setCountries(response.data);
+        } else {
+          console.error('Invalid response format:', response);
+          toast.error('Failed to load countries. Please refresh the page.');
+        }
+      } catch (error) {
+        console.error('Error loading countries:', error);
+        toast.error('Failed to load countries. Please refresh the page.');
+        // Set fallback countries
+        setCountries([
+          { name: 'Nigeria', code: 'NG' },
+          { name: 'United States', code: 'US' },
+          { name: 'United Kingdom', code: 'GB' },
+          { name: 'Canada', code: 'CA' },
+          { name: 'Ghana', code: 'GH' }
+        ]);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+    loadCountries();
+  }, []);
+
+  // Load states when country changes
+  React.useEffect(() => {
+    if (selectedCountry) {
+      const loadStates = async () => {
+        try {
+          setLoadingLocations(true);
+          setStates([]);
+          setCities([]);
+          setLgas([]);
+          setValue("state", "");
+          setValue("city", "");
+          setValue("lga", "");
+          
+          const response = await apiService.getStates(selectedCountry);
+          if (response.success && response.data) {
+            setStates(response.data);
+          } else {
+            console.warn('No states found for', selectedCountry);
+          }
+        } catch (error) {
+          console.error('Error loading states:', error);
+          // Don't show error toast for states as they might not be available
+        } finally {
+          setLoadingLocations(false);
+        }
+      };
+      loadStates();
+    }
+  }, [selectedCountry, setValue]);
+
+  // Load cities when state changes
+  React.useEffect(() => {
+    if (selectedCountry && selectedState) {
+      const loadCities = async () => {
+        try {
+          setLoadingLocations(true);
+          setCities([]);
+          setValue("city", "");
+          
+          const response = await apiService.getCities(selectedCountry, selectedState);
+          if (response.success && response.data) {
+            setCities(response.data);
+          }
+        } catch (error) {
+          console.error('Error loading cities:', error);
+          // Cities might not be available for all states
+        } finally {
+          setLoadingLocations(false);
+        }
+      };
+      loadCities();
+    }
+  }, [selectedCountry, selectedState, setValue]);
+
+  // Load LGAs for Nigerian states
+  // Load LGAs when country and state are selected
+  React.useEffect(() => {
+    if (selectedCountry && selectedState) {
+      const loadLGAs = async () => {
+        try {
+          setLoadingLocations(true);
+          setLgas([]);
+          setValue("lga", "");
+          
+          console.log('🔍 Loading LGAs for:', selectedCountry, '-', selectedState);
+          const response = await apiService.getLGAs(selectedCountry, selectedState);
+          console.log('📦 LGA API response:', response);
+          
+          if (response.success && response.data) {
+            setLgas(response.data);
+            console.log('✅ LGAs loaded:', response.data.length, 'items');
+          } else {
+            console.warn('⚠️ No LGAs found');
+          }
+        } catch (error) {
+          console.error('❌ Error loading LGAs:', error);
+        } finally {
+          setLoadingLocations(false);
+        }
+      };
+      loadLGAs();
+    } else {
+      // Clear LGAs when country or state is not selected
+      setLgas([]);
+      setValue("lga", "");
+    }
+  }, [selectedCountry, selectedState, setValue]);
 
   const handleNext = async () => {
     const isValid = await trigger();
@@ -113,6 +246,11 @@ const SubscribeTo = () => {
     const finalData = { ...formData, ...data };
     setIsLoading(true);
     
+    console.log('📤 Submitting registration data:', {
+      ...finalData,
+      password: '***hidden***'
+    });
+    
     try {
       const response = await apiService.register({
         ...finalData,
@@ -120,6 +258,7 @@ const SubscribeTo = () => {
         referralPhone: finalData.referralPhone || "",
       });
 
+      console.log('✅ Registration response:', response);
       toast.success("Registration successful!");
       
       // Auto-login after registration
@@ -131,7 +270,18 @@ const SubscribeTo = () => {
         navigate("/signin");
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Registration failed. Please try again.";
+      console.error('❌ Registration error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          "Registration failed. Please try again.";
+      
+      // Show detailed error in development
+      if (error.response?.data?.details) {
+        console.error('❌ Error details:', error.response.data.details);
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -186,8 +336,8 @@ const SubscribeTo = () => {
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mobile Number <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Mobile Number <span className="text-red-500 ml-1">*</span>
               </label>
               <PhoneInput
                 country={'ng'}
@@ -213,12 +363,12 @@ const SubscribeTo = () => {
                 }}
               />
               {errors.mobile && (
-                <p className="text-red-500 text-sm mt-1">{errors.mobile.message}</p>
+                <p className="text-red-500 text-xs mt-1.5">{errors.mobile.message}</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Alternate Phone <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Alternate Phone <span className="text-red-500 ml-1">*</span>
               </label>
               <PhoneInput
                 country={'ng'}
@@ -243,7 +393,7 @@ const SubscribeTo = () => {
                 }}
               />
               {errors.alternatePhone && (
-                <p className="text-red-500 text-sm mt-1">{errors.alternatePhone.message}</p>
+                <p className="text-red-500 text-xs mt-1.5">{errors.alternatePhone.message}</p>
               )}
             </div>
             <Input
@@ -255,12 +405,12 @@ const SubscribeTo = () => {
               {...register("dob")}
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gender <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Gender <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 {...register("gender")}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
               >
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
@@ -268,7 +418,7 @@ const SubscribeTo = () => {
                 <option value="other">Other</option>
               </select>
               {errors.gender && (
-                <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>
+                <p className="text-red-500 text-xs mt-1.5">{errors.gender.message}</p>
               )}
             </div>
           </div>
@@ -295,8 +445,8 @@ const SubscribeTo = () => {
               required
               {...register("confirmPassword")}
             />
-            <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
-              <p className="text-xs text-cyan-800">
+            <div className="bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3">
+              <p className="text-xs text-[var(--color-text-secondary)]">
                 Password must be at least 6 characters long.
               </p>
             </div>
@@ -315,40 +465,95 @@ const SubscribeTo = () => {
               required
               {...register("address1")}
             />
-            <Input
-              label="City"
-              type="text"
-              placeholder="Lagos"
-              icon={<MapPin size={20} />}
-              error={errors.city?.message}
-              required
-              {...register("city")}
-            />
-            <Input
-              label="State/Region"
-              type="text"
-              placeholder="Lagos State"
-              icon={<MapPin size={20} />}
-              error={errors.state?.message}
-              required
-              {...register("state")}
-            />
-            <Input
-              label="Country"
-              type="text"
-              placeholder="Nigeria"
-              icon={<MapPin size={20} />}
-              error={errors.country?.message}
-              required
-              {...register("country")}
-            />
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency <span className="text-red-500">*</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Country <span className="text-red-500 ml-1">*</span>
+              </label>
+              <select
+                {...register("country")}
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
+                disabled={loadingLocations}
+              >
+                <option value="">Select country</option>
+                {countries.map((country) => (
+                  <option key={country.name} value={country.name}>
+                    {country.name}
+                  </option>
+                ))}
+              </select>
+              {errors.country && (
+                <p className="text-red-500 text-xs mt-1.5">{errors.country.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                State/Region <span className="text-red-500 ml-1">*</span>
+              </label>
+              <select
+                {...register("state")}
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
+                disabled={!selectedCountry || loadingLocations}
+              >
+                <option value="">Select state/region</option>
+                {states.map((state) => (
+                  <option key={state.name} value={state.name}>
+                    {state.name}
+                  </option>
+                ))}
+              </select>
+              {errors.state && (
+                <p className="text-red-500 text-xs mt-1.5">{errors.state.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                City <span className="text-red-500 ml-1">*</span>
+              </label>
+              <Input
+                label=""
+                type="text"
+                placeholder="Enter city"
+                icon={<MapPin size={20} />}
+                error={errors.city?.message}
+                required
+                {...register("city")}
+              />
+              {errors.city && (
+                <p className="text-red-500 text-xs mt-1.5">{errors.city.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                LGA (Local Government Area) <span className="text-red-500 ml-1">*</span>
+              </label>
+              <select
+                {...register("lga")}
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
+                disabled={!selectedState || loadingLocations}
+              >
+                <option value="">Select LGA</option>
+                {lgas.map((lga) => (
+                  <option key={lga.name} value={lga.name}>
+                    {lga.name}
+                  </option>
+                ))}
+              </select>
+              {errors.lga && (
+                <p className="text-red-500 text-xs mt-1.5">{errors.lga.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Currency <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 {...register("currency")}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
               >
                 <option value="">Select currency</option>
                 <option value="NGN">NGN - Nigerian Naira</option>
@@ -357,7 +562,7 @@ const SubscribeTo = () => {
                 <option value="EUR">EUR - Euro</option>
               </select>
               {errors.currency && (
-                <p className="text-red-500 text-sm mt-1">{errors.currency.message}</p>
+                <p className="text-red-500 text-xs mt-1.5">{errors.currency.message}</p>
               )}
             </div>
           </div>
@@ -366,61 +571,87 @@ const SubscribeTo = () => {
       case 5:
         return (
           <div className="space-y-4">
-            <Input
-              label="Next of Kin Name"
-              type="text"
-              placeholder="Jane Doe"
-              icon={<User size={20} />}
-              error={errors.nextOfKinName?.message}
-              required
-              {...register("nextOfKinName")}
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Next of Kin Contact <span className="text-red-500">*</span>
-              </label>
-              <PhoneInput
-                country={'ng'}
-                value={formData.nextOfKinContact || ''}
-                onChange={(value, country) => {
-                  const event = {
-                    target: {
-                      name: 'nextOfKinContact',
-                      value: value
-                    }
-                  };
-                  const nextOfKinContactField = register("nextOfKinContact");
-                  if (nextOfKinContactField.onChange) {
-                    nextOfKinContactField.onChange(event);
-                  }
-                }}
-                inputClass="w-full"
-                containerClass="phone-input-container"
-                inputProps={{
-                  name: 'nextOfKinContact',
-                  required: true,
-                }}
+            {/* Next of Kin Section */}
+            <div className="space-y-4 pb-4 border-b border-[var(--color-border)]">
+              <Input
+                label="Next of Kin Name"
+                type="text"
+                placeholder="Jane Doe"
+                icon={<User size={20} />}
+                error={errors.nextOfKinName?.message}
+                required
+                {...register("nextOfKinName")}
               />
-              {errors.nextOfKinContact && (
-                <p className="text-red-500 text-sm mt-1">{errors.nextOfKinContact.message}</p>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Next of Kin Contact <span className="text-red-500 ml-1">*</span>
+                </label>
+                <PhoneInput
+                  country={'ng'}
+                  value={formData.nextOfKinContact || ''}
+                  onChange={(value, country) => {
+                    const event = {
+                      target: {
+                        name: 'nextOfKinContact',
+                        value: value
+                      }
+                    };
+                    const nextOfKinContactField = register("nextOfKinContact");
+                    if (nextOfKinContactField.onChange) {
+                      nextOfKinContactField.onChange(event);
+                    }
+                  }}
+                  inputClass="w-full"
+                  containerClass="phone-input-container"
+                  inputProps={{
+                    name: 'nextOfKinContact',
+                    required: true,
+                  }}
+                />
+                {errors.nextOfKinContact && (
+                  <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+                    {errors.nextOfKinContact.message}
+                  </p>
+                )}
+              </div>
             </div>
-            <Input
-              label="Referral Code (Optional)"
-              type="text"
-              placeholder="Enter referral code"
-              icon={<User size={20} />}
-              error={errors.referral?.message}
-              {...register("referral")}
-            />
-            <Input
-              label="Referral Phone (Optional)"
-              type="text"
-              placeholder="Referrer's phone number"
-              icon={<Phone size={20} />}
-              error={errors.referralPhone?.message}
-              {...register("referralPhone")}
-            />
+
+            {/* Additional Information Section */}
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Join an Esusu <span className="text-red-500 ml-1">*</span>
+                </label>
+                <select
+                  {...register("joinEsusu")}
+                  className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all duration-150 text-sm"
+                >
+                  <option value="">Select an option</option>
+                  <option value="yes">Yes, I want to join an Esusu</option>
+                  <option value="no">No, not at this time</option>
+                </select>
+                {errors.joinEsusu && (
+                  <p className="text-red-500 text-xs mt-1.5">{errors.joinEsusu.message}</p>
+                )}
+              </div>
+
+              <Input
+                label="Referral Code (Optional)"
+                type="text"
+                placeholder="Enter referral code"
+                icon={<User size={20} />}
+                error={errors.referral?.message}
+                {...register("referral")}
+              />
+              <Input
+                label="Referral Phone (Optional)"
+                type="text"
+                placeholder="Referrer's phone number"
+                icon={<Phone size={20} />}
+                error={errors.referralPhone?.message}
+                {...register("referralPhone")}
+              />
+            </div>
           </div>
         );
 
@@ -433,68 +664,64 @@ const SubscribeTo = () => {
     "Personal Information",
     "Contact Details",
     "Security",
-    "Address & Currency",
-    "Emergency Contact"
+    "Location & Currency",
+    "Next of Kin & Preferences"
   ];
 
   return (
-    <div className='min-h-screen grid md:grid-cols-2 grid-cols-1'>
-      {/* Left side - Carousel (hidden on mobile) */}
-      <div className="hidden md:block h-screen">
+    <div className='min-h-screen relative'>
+      {/* Left side - Carousel (hidden on mobile) - Fixed position */}
+      <div className="hidden md:block fixed left-0 top-0 w-1/2 h-screen overflow-hidden z-10">
         <AuthCarousel />
       </div>
       
       {/* Right side - Multi-step Form */}
-      <div className='flex items-center justify-center p-4 md:p-8 bg-[var(--color-background)] min-h-screen'>
+      <div className='min-h-screen md:absolute md:right-0 md:w-1/2 flex items-center justify-center p-4 md:p-8 bg-gray-50'>
         <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          {/* Logo (visible on mobile) */}
-          <div className="md:hidden flex flex-col items-center mb-6">
-            <img src={Img} alt="MyDewbox Logo" className="h-14 w-14 mb-2" />
-            <h1 className="text-xl font-bold text-[var(--color-text-primary)]">MyDewbox</h1>
-          </div>
+          {/* Logo (visible on mobile) - Removed to clean up UI */}
 
-          {/* Progress Bar */}
+          {/* Progress Bar - Minimal */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               {[1, 2, 3, 4, 5].map((step) => (
                 <div key={step} className="flex items-center flex-1">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
                       step < currentStep
-                        ? 'bg-cyan-500 text-white'
+                        ? 'bg-blue-600 text-white'
                         : step === currentStep
-                        ? 'bg-cyan-500 text-white ring-4 ring-cyan-100'
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-600/20'
+                        : 'bg-gray-200 text-gray-400'
                     }`}
                   >
-                    {step < currentStep ? <Check size={16} /> : step}
+                    {step < currentStep ? <Check size={12} /> : step}
                   </div>
                   {step < 5 && (
                     <div
-                      className={`flex-1 h-1 mx-2 rounded transition-all ${
-                        step < currentStep ? 'bg-cyan-500' : 'bg-gray-200'
+                      className={`flex-1 h-0.5 mx-1.5 rounded transition-all ${
+                        step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
                       }`}
                     />
                   )}
                 </div>
               ))}
             </div>
-            <p className="text-sm text-[var(--color-text-secondary)] text-center">
+            <p className="text-xs text-gray-500 text-center">
               Step {currentStep} of {totalSteps}: {stepTitles[currentStep - 1]}
             </p>
           </div>
 
-          {/* Clean Card Container */}
-          <Card variant="elevated" padding="lg" className="bg-[var(--color-surface-elevated)]">
-            {/* Header */}
+          {/* Clean Minimal Card Container */}
+          <Card variant="elevated" padding="md" className="bg-white shadow-sm border border-gray-200">
+            {/* Header - Minimal */}
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">Create Account</h2>
-              <p className="text-[var(--color-text-secondary)] text-sm">{stepTitles[currentStep - 1]}</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Create Account</h2>
+              <p className="text-gray-500 text-xs">{stepTitles[currentStep - 1]}</p>
             </div>
 
             {/* Form */}
@@ -511,15 +738,15 @@ const SubscribeTo = () => {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Navigation Buttons */}
-              <div className="flex gap-3 mt-6">
+              {/* Navigation Buttons - Minimal */}
+              <div className="flex gap-2 mt-6">
                 {currentStep > 1 && (
                   <Button
                     type="button"
                     variant="outline"
-                    size="lg"
+                    size="md"
                     onClick={handleBack}
-                    icon={<ArrowLeft size={20} />}
+                    icon={<ArrowLeft size={16} />}
                   >
                     Back
                   </Button>
@@ -527,28 +754,36 @@ const SubscribeTo = () => {
                 <Button
                   type="submit"
                   variant="primary"
-                  size="lg"
+                  size="md"
                   fullWidth={currentStep === 1}
                   loading={isLoading && currentStep === totalSteps}
-                  icon={currentStep < totalSteps ? <ArrowRight size={20} /> : null}
+                  icon={currentStep < totalSteps ? <ArrowRight size={16} /> : null}
                 >
                   {currentStep === totalSteps ? 'Create Account' : 'Continue'}
                 </Button>
               </div>
             </form>
 
-            {/* Sign In Link */}
-            <div className="mt-6 text-center">
-              <p className="text-[var(--color-text-secondary)] text-sm">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/signin")}
-                  className="text-cyan-600 hover:text-cyan-700 font-semibold"
-                >
-                  Sign in
-                </button>
-              </p>
+            {/* Sign In Link - Minimal */}
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-gray-500">
+                    Already have an account?
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/signin")}
+                className="mt-3 w-full py-2 px-4 border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-all duration-150 flex items-center justify-center gap-2"
+              >
+                <span>Sign in to your account</span>
+                <ArrowRight size={14} />
+              </button>
             </div>
           </Card>
         </motion.div>

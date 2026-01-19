@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { ArrowRight, TrendingUp, Plus, PiggyBank, Target, Clock, Bell, BellOff } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, TrendingUp, Plus, PiggyBank, Target, Clock, Bell, BellOff, Calendar, Award, Zap, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -11,7 +11,6 @@ import Modal from "../components/ui/Modal";
 
 const Homepage = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [showAutoPayModal, setShowAutoPayModal] = useState(false);
 
   // Fetch subscriber data
@@ -23,7 +22,7 @@ const Homepage = () => {
   });
 
   // Fetch contribution history
-  const { data: contributionsData, isLoading: contributionsLoading } = useQuery({
+  const { data: contributionsData } = useQuery({
     queryKey: ['contributionHistory'],
     queryFn: () => apiService.getContributionHistory(),
     retry: 1,
@@ -36,20 +35,31 @@ const Homepage = () => {
     retry: 1,
   });
 
+  // Fetch wallet data
+  const { data: walletData } = useQuery({
+    queryKey: ['wallet'],
+    queryFn: () => apiService.getWallet(),
+    retry: 1,
+  });
+
   const userData = useMemo(() => {
     const subscriber = subscriberData?.data?.subscriber;
+    const wallet = walletData?.data?.wallet;
+    
     if (!subscriber) return { 
       name: 'User', 
       mainBalance: 0, 
       icaBalance: 0, 
       piggyBalance: 0,
-      hasContributed: false 
+      hasContributed: false,
+      walletBalance: 0
     };
     
     // Parse values to ensure they're numbers
     const icaBalance = parseFloat(subscriber.ica_balance) || 0;
     const piggyBalance = parseFloat(subscriber.piggy_balance) || 0;
     const mainBalance = parseFloat(subscriber.balance) || 0;
+    const walletBalance = parseFloat(wallet?.balance) || mainBalance;
     
     return {
       name: subscriber.firstname || 'User',
@@ -57,8 +67,77 @@ const Homepage = () => {
       icaBalance,
       piggyBalance,
       hasContributed: (icaBalance > 0 || piggyBalance > 0),
+      walletBalance,
+      subscriberId: subscriber.id
     };
-  }, [subscriberData]);
+  }, [subscriberData, walletData]);
+
+  // Calculate contribution statistics
+  const contributionStats = useMemo(() => {
+    const contributions = contributionsData?.data || [];
+    
+    if (contributions.length === 0) {
+      return {
+        totalContributions: 0,
+        thisMonthContributions: 0,
+        contributionStreak: 0,
+        lastContributionDate: null,
+        nextPaymentDate: null,
+        averageContribution: 0
+      };
+    }
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Filter this month's contributions
+    const thisMonthContributions = contributions.filter(c => {
+      const date = new Date(c.contribution_date || c.createdAt);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    }).reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+
+    // Calculate streak (consecutive months with contributions)
+    let streak = 0;
+    let checkDate = new Date(currentYear, currentMonth, 1);
+    
+    for (let i = 0; i < 12; i++) {
+      const monthContributions = contributions.filter(c => {
+        const date = new Date(c.contribution_date || c.createdAt);
+        return date.getMonth() === checkDate.getMonth() && 
+               date.getFullYear() === checkDate.getFullYear();
+      });
+      
+      if (monthContributions.length > 0) {
+        streak++;
+        checkDate.setMonth(checkDate.getMonth() - 1);
+      } else {
+        break;
+      }
+    }
+
+    // Get last contribution date
+    const sortedContributions = [...contributions].sort((a, b) => 
+      new Date(b.contribution_date || b.createdAt) - new Date(a.contribution_date || a.createdAt)
+    );
+    const lastContributionDate = sortedContributions[0]?.contribution_date || sortedContributions[0]?.createdAt;
+
+    // Calculate next payment date (1st of next month)
+    const nextPaymentDate = new Date(currentYear, currentMonth + 1, 1);
+
+    // Calculate average contribution
+    const totalAmount = contributions.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+    const averageContribution = contributions.length > 0 ? totalAmount / contributions.length : 0;
+
+    return {
+      totalContributions: contributions.length,
+      thisMonthContributions,
+      contributionStreak: streak,
+      lastContributionDate,
+      nextPaymentDate,
+      averageContribution
+    };
+  }, [contributionsData]);
 
   const recentActivity = useMemo(() => {
     const transactions = transactionsData?.data || [];
@@ -110,12 +189,12 @@ const Homepage = () => {
   if (subscriberLoading) {
     return (
       <div className="max-w-7xl mx-auto space-y-6 p-4">
-        <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="h-8 w-32 bg-[var(--color-surface-elevated)] rounded animate-pulse" />
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="h-80 bg-gray-200 rounded-3xl animate-pulse" />
+          <div className="h-80 bg-[var(--color-surface-elevated)] rounded-3xl animate-pulse" />
           <div className="lg:col-span-2 space-y-4">
-            <div className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
-            <div className="h-36 bg-gray-200 rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[var(--color-surface-elevated)] rounded-2xl animate-pulse" />
+            <div className="h-36 bg-[var(--color-surface-elevated)] rounded-2xl animate-pulse" />
           </div>
         </div>
       </div>
@@ -124,72 +203,96 @@ const Homepage = () => {
 
   const totalContributions = userData.icaBalance + userData.piggyBalance;
   const icaProgress = userData.icaBalance > 0 ? Math.min((userData.icaBalance / 100000) * 100, 100) : 0;
+  const piggyProgress = userData.piggyBalance > 0 ? Math.min((userData.piggyBalance / 50000) * 100, 100) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-4">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Welcome Header - Clean and Professional */}
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
-            Welcome back, {userData.name}! 👋
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+            Welcome back, {userData.name}
           </h1>
-          <p className="text-[var(--color-text-secondary)] mt-1">
-            Here's your financial overview
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+            {contributionStats.contributionStreak > 0 
+              ? `${contributionStats.contributionStreak} month${contributionStats.contributionStreak > 1 ? 's' : ''} contribution streak`
+              : "Here's your financial overview"}
           </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Main Balance & Quick Actions */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Main Balance Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-[#0066FF] to-[#0052CC] rounded-[28px] p-8 text-white shadow-[0_8px_30px_rgba(0,102,255,0.2)]"
-          >
-            <div className="mb-8">
-              <div className="text-sm opacity-70 mb-3 font-medium">Wallet Balance</div>
-              <div className="text-5xl font-bold mb-2 tracking-tight">
-                {formatCurrency(userData.mainBalance)}
-              </div>
-              <div className="text-sm opacity-60">Available to spend</div>
+        {/* Left Column - Main Balance Card */}
+        <div className="lg:col-span-1">
+          {/* Wallet Balance Card - Trust-building design */}
+          <Card variant="elevated" padding="lg" className="mb-6">
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] mb-3 font-medium">
+              <Wallet size={16} />
+              <span>Wallet Balance</span>
+            </div>
+            <div className="text-4xl font-bold text-[var(--color-text-primary)] mb-2 tracking-tight">
+              {formatCurrency(userData.walletBalance)}
+            </div>
+            <div className="text-sm text-[var(--color-text-secondary)] mb-6">
+              Available to spend or contribute
             </div>
             
-            {/* Quick Actions */}
+            {/* Quick Actions - Clean buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => navigate('/dashboard/transactions?action=deposit')}
-                className="bg-white/15 hover:bg-white/25 rounded-[20px] p-5 transition-all duration-200 text-left border border-white/20 backdrop-blur-sm"
+                className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-all duration-150"
               >
-                <Plus className="w-6 h-6 mb-3" />
-                <div className="text-sm font-semibold">Add Money</div>
+                <Plus className="w-5 h-5 mb-2 text-[var(--color-primary)]" />
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">Add Money</div>
               </button>
               <button
-                onClick={() => navigate('/dashboard/transactions?action=withdraw')}
-                className="bg-white/15 hover:bg-white/25 rounded-[20px] p-5 transition-all duration-200 text-left border border-white/20 backdrop-blur-sm"
+                onClick={() => navigate('/dashboard/contribute')}
+                className="flex flex-col items-center justify-center p-4 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all duration-150"
               >
-                <ArrowRight className="w-6 h-6 mb-3" />
-                <div className="text-sm font-semibold">Transfer</div>
+                <TrendingUp className="w-5 h-5 mb-2 text-white" />
+                <div className="text-sm font-semibold text-white">Contribute</div>
               </button>
             </div>
-          </motion.div>
-
-          {/* Total Contributions Card */}
-          <Card variant="elevated" padding="lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-medium text-[var(--color-text-secondary)]">
-                Total Contributions
-              </div>
-              <TrendingUp className="text-green-500" size={20} />
-            </div>
-            <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-              {formatCurrency(totalContributions)}
-            </div>
-            <div className="text-xs text-[var(--color-text-secondary)]">
-              ICA + Piggy combined
-            </div>
           </Card>
+
+          {/* Stats Cards - Minimal design */}
+          <div className="space-y-4">
+            {/* Total Contributions */}
+            <Card variant="flat" padding="md">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Total Contributions
+                </div>
+                <TrendingUp className="text-green-600" size={18} />
+              </div>
+              <div className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">
+                {formatCurrency(totalContributions)}
+              </div>
+              <div className="text-xs text-[var(--color-text-secondary)]">
+                ICA + Piggy combined
+              </div>
+            </Card>
+
+            {/* Contribution Streak */}
+            {contributionStats.contributionStreak > 0 && (
+              <Card variant="flat" padding="md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <Zap className="text-orange-600" size={20} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+                      Contribution Streak
+                    </div>
+                    <div className="text-xl font-bold text-[var(--color-text-primary)]">
+                      {contributionStats.contributionStreak} {contributionStats.contributionStreak === 1 ? 'Month' : 'Months'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
         </div>
 
         {/* Right Column - Contributions Breakdown & Activity */}
@@ -208,13 +311,26 @@ const Homepage = () => {
                       Piggy Contributions
                     </div>
                     <div className="text-xs text-[var(--color-text-secondary)]">
-                      Monthly
+                      Monthly savings
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
+              <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-3">
                 {formatCurrency(userData.piggyBalance)}
+              </div>
+              <div className="mb-3">
+                <div className="flex justify-between text-xs text-[var(--color-text-secondary)] mb-1">
+                  <span>{piggyProgress.toFixed(0)}% of ₦50,000 goal</span>
+                </div>
+                <div className="w-full h-2 bg-[var(--color-border-light)] rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${piggyProgress}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-[#d97706] to-[#f59e0b] rounded-full"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => navigate('/dashboard/contribute')}
@@ -236,19 +352,25 @@ const Homepage = () => {
                       ICA Progress
                     </div>
                     <div className="text-xs text-[var(--color-text-secondary)]">
-                      Yearly Goal
+                      Yearly investment goal
                     </div>
                   </div>
                 </div>
+                {icaProgress >= 100 && (
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <Award className="text-green-600" size={16} />
+                  </div>
+                )}
               </div>
               <div className="text-3xl font-bold text-[var(--color-text-primary)] mb-3">
                 {formatCurrency(userData.icaBalance)}
               </div>
-              <div className="mb-2">
+              <div className="mb-3">
                 <div className="flex justify-between text-xs text-[var(--color-text-secondary)] mb-1">
-                  <span>{icaProgress.toFixed(0)}% of ₦100,000</span>
+                  <span>{icaProgress.toFixed(0)}% of ₦100,000 goal</span>
+                  {icaProgress >= 100 && <span className="text-green-600 font-semibold">Goal Reached! 🎉</span>}
                 </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-[var(--color-border-light)] rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${icaProgress}%` }}
@@ -257,11 +379,16 @@ const Homepage = () => {
                   />
                 </div>
               </div>
+              {icaProgress < 100 && (
+                <div className="text-xs text-[var(--color-text-secondary)] mb-3">
+                  {formatCurrency(100000 - userData.icaBalance)} remaining to reach goal
+                </div>
+              )}
               <button
                 onClick={() => navigate('/dashboard/contribute')}
                 className="text-sm text-[#0066FF] hover:underline font-medium"
               >
-                Contribute to ICA →
+                {icaProgress >= 100 ? 'Continue Contributing →' : 'Contribute to ICA →'}
               </button>
             </Card>
           </div>
@@ -286,7 +413,7 @@ const Homepage = () => {
             {transactionsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                  <div key={i} className="h-16 bg-[var(--color-surface-elevated)] rounded-lg animate-pulse" />
                 ))}
               </div>
             ) : recentActivity.length > 0 ? (

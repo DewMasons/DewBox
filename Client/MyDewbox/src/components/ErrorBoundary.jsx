@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
         <div className="p-4 bg-red-50 border border-red-200 rounded">
           <h2 className="text-red-600 font-bold">Something went wrong</h2>
           <button 
-            className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
+            className="mt-2 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-all duration-150 shadow-sm"
             onClick={() => this.setState({ hasError: false })}
           >
             Try again

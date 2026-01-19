@@ -6,7 +6,7 @@ import * as yup from "yup";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { Phone, Lock } from "lucide-react";
+import { Phone, Lock, ArrowRight } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
 import { login } from '../services/api';
 import { useAuthStore } from '../store/authstore';
@@ -76,32 +76,28 @@ const SignIn = () => {
   };
 
   return (
-    <div className='min-h-screen grid md:grid-cols-2 grid-cols-1'>
-      {/* Left side - Carousel (hidden on mobile) */}
-      <div className="hidden md:block h-screen">
+    <div className='min-h-screen relative'>
+      {/* Left side - Carousel (hidden on mobile) - Fixed position */}
+      <div className="hidden md:block fixed left-0 top-0 w-1/2 h-screen overflow-hidden z-10">
         <AuthCarousel />
       </div>
 
       {/* Right side - Sign In Form */}
-      <div className='flex items-center justify-center p-4 md:p-8 bg-[var(--color-background)] min-h-screen'>
+      <div className='min-h-screen md:absolute md:right-0 md:w-1/2 flex items-center justify-center p-4 md:p-8 bg-gray-50'>
         <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          {/* Logo (visible on mobile) */}
-          <div className="md:hidden flex flex-col items-center mb-8">
-            <img src={Img} alt="MyDewbox Logo" className="h-16 w-16 mb-3" />
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">MyDewbox</h1>
-          </div>
+          {/* Logo (visible on mobile) - Removed to clean up UI */}
 
-          {/* Clean Card Container */}
-          <Card variant="elevated" padding="lg" className="bg-[var(--color-surface-elevated)]">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">Welcome back</h2>
-              <p className="text-[var(--color-text-secondary)]">Sign in to your account to continue</p>
+          {/* Clean Minimal Card Container */}
+          <Card variant="elevated" padding="md" className="bg-white shadow-sm border border-gray-200">
+            {/* Header - Minimal */}
+            <div className="text-center mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Welcome back</h2>
+              <p className="text-gray-500 text-xs">Sign in to your account to continue</p>
             </div>
 
             {/* Form */}
@@ -157,11 +153,11 @@ const SignIn = () => {
                 </button>
               </div>
 
-              {/* Sign In Button */}
+              {/* Sign In Button - Minimal */}
               <Button
                 type="submit"
                 variant="primary"
-                size="lg"
+                size="md"
                 fullWidth
                 loading={isLoading}
               >
@@ -169,18 +165,26 @@ const SignIn = () => {
               </Button>
             </form>
 
-            {/* Create Account Link */}
-            <div className="mt-6 text-center">
-              <p className="text-[var(--color-text-secondary)]">
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/subscribeto")}
-                  className="text-primary-600 hover:text-primary-700 font-semibold"
-                >
-                  Create account
-                </button>
-              </p>
+            {/* Create Account Link - Minimal */}
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-gray-500">
+                    Don't have an account?
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/subscribeto")}
+                className="mt-3 w-full py-2 px-4 border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-all duration-150 flex items-center justify-center gap-2"
+              >
+                <span>Create new account</span>
+                <ArrowRight size={14} />
+              </button>
             </div>
           </Card>
         </motion.div>

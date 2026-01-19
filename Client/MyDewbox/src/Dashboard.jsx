@@ -11,7 +11,7 @@ import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import FundWalletPrompt from "./components/FundWalletPrompt";
 import { useAuthStore } from "./store/authstore";
 import Contribute from "./pages/Contribute";
-import Transactions from "./pages/Transactions";
+import Wallet from "./pages/Wallet"; // ✨ Renamed from Transactions
 import Profile from "./pages/Profile";
 import Homepage from "./pages/Home";
 
@@ -46,8 +46,8 @@ const Dashboard = () => {
           className={clsx(
             "flex-1",
             // Responsive margin offset for desktop sidebar
-            isSidebarCollapsed ? "md:ml-[80px]" : "md:ml-[280px]",
-            "pb-20 md:pb-0", // Bottom padding for mobile nav (64px + 16px)
+            isSidebarCollapsed ? "md:ml-[72px]" : "md:ml-[260px]",
+            "pb-20 md:pb-0", // Bottom padding for mobile nav
             "p-4 sm:p-6 md:p-8", // Responsive padding
             "transition-all duration-300"
           )}
@@ -71,10 +71,10 @@ const Dashboard = () => {
                 }
               />
               <Route
-                path="transactions"
+                path="wallet"
                 element={
                   <PageTransition>
-                    <Transactions />
+                    <Wallet />
                   </PageTransition>
                 }
               />

@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { cardHover } from '../../config/animations';
 
 /**
- * Card Component - Revolut-inspired card with variants and animations
+ * Card Component - Professional Fintech Design
  * 
  * @param {Object} props
- * @param {'default' | 'elevated' | 'outlined' | 'glass'} props.variant - Card style variant
- * @param {'sm' | 'md' | 'lg'} props.padding - Card padding size
+ * @param {'default' | 'elevated' | 'outlined' | 'flat'} props.variant - Card style variant
+ * @param {'sm' | 'md' | 'lg' | 'none'} props.padding - Card padding size
  * @param {boolean} props.hoverable - Whether card should have hover animation
  * @param {React.ReactNode} props.children - Card content
  * @param {string} props.className - Additional CSS classes
@@ -22,26 +22,27 @@ const Card = ({
   onClick,
   ...props
 }) => {
-  // Base styles with larger border radius for Revolut style
-  const baseStyles = 'rounded-3xl transition-all duration-200 ease-in-out';
+  // Base styles - clean and professional
+  const baseStyles = 'rounded-lg transition-all duration-150 ease-in-out';
   
-  // Variant styles - Clean Revolut-inspired design with subtle shadows
+  // Variant styles - professional fintech design with theme support
   const variantStyles = {
-    default: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]',
-    elevated: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-[0_2px_8px_rgba(0,0,0,0.08)]',
-    outlined: 'bg-[var(--color-surface-elevated)] border-2 border-[var(--color-border)]',
-    glass: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]',
+    default: 'bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm',
+    elevated: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-md',
+    outlined: 'bg-[var(--color-surface)] border-2 border-[var(--color-border)]',
+    flat: 'bg-[var(--color-surface)] border border-[var(--color-border)]',
   };
   
-  // Padding styles - more generous spacing
+  // Padding styles
   const paddingStyles = {
+    none: 'p-0',
     sm: 'p-4',
     md: 'p-6',
-    lg: 'p-7',
+    lg: 'p-8',
   };
   
-  // Hoverable styles - subtle hover effect
-  const hoverableStyles = hoverable ? 'cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]' : '';
+  // Hoverable styles
+  const hoverableStyles = hoverable ? 'cursor-pointer hover:shadow-lg hover:border-[var(--color-primary)]' : '';
   
   // Combine all styles
   const cardClasses = `${baseStyles} ${variantStyles[variant]} ${paddingStyles[padding]} ${hoverableStyles} ${className}`;

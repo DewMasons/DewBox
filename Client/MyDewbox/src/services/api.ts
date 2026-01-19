@@ -72,9 +72,21 @@ export const apiService = {
   },
 
   // User
-  getCurrentUser: () => api.get('/users/me'),
+  getCurrentUser: () => api.get('/users/me'), // Get current user info
+  getSubscriber: () => api.get('/users/subscriber'), // Get full subscriber profile  
+  getWallet: async () => {
+    // Fetch wallet data - this might need to be implemented on backend
+    try {
+      const response = await api.get('/wallets/me');
+      return response.data;
+    } catch (error) {
+      // If wallet endpoint doesn't exist, return subscriber balance
+      const subscriber = await api.get('/users/subscriber');
+      return { data: { wallet: { balance: subscriber.data.subscriber.balance } } };
+    }
+  },
+  getBalance: () => api.get('/users/balance'), // Get user balance
   updateProfile: (data: any) => api.patch('/users/profile', data),
-  getSubscriber: () => api.get('/users/subscriber'), // New API call for subscriber info
 
   // Transactions
   getTransactions: async () => {
@@ -110,6 +122,28 @@ export const apiService = {
   },
   verifyBankAccount: async (data: any) => {
     const response = await api.post(cleanUrl('/banks/verify-account'), data);
+    return response.data;
+  },
+
+  // Locations
+  getCountries: async () => {
+    const response = await api.get(cleanUrl('/locations/countries'));
+    return response.data;
+  },
+  getStates: async (country: string) => {
+    const response = await api.get(cleanUrl(`/locations/states?country=${encodeURIComponent(country)}`));
+    return response.data;
+  },
+  getCities: async (country: string, state: string) => {
+    const response = await api.get(cleanUrl(`/locations/cities?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}`));
+    return response.data;
+  },
+  getLGAs: async (country: string, state: string) => {
+    const url = cleanUrl(`/locations/lgas?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}`);
+    console.log('🌐 Frontend API call - URL:', url);
+    console.log('🌐 Full URL:', api.defaults.baseURL + url);
+    const response = await api.get(url);
+    console.log('📦 Frontend API response:', response.data);
     return response.data;
   },
 };

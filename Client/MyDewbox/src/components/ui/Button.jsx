@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { buttonHover, buttonTap } from '../../config/animations';
 
 /**
- * Button Component - Revolut-inspired button with variants and animations
+ * Button Component - Professional Fintech Design
  * 
  * @param {Object} props
  * @param {'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'} props.variant - Button style variant
@@ -32,23 +32,23 @@ const Button = ({
   type = 'button',
   ...props
 }) => {
-  // Base styles with enhanced focus for keyboard navigation
-  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-2xl transition-all duration-150 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  // Base styles - clean and professional
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-150 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
-  // Variant styles - using CSS variables for theme support with cleaner Revolut style
+  // Variant styles - professional fintech design with dark mode support
   const variantStyles = {
-    primary: 'bg-[#0066FF] text-white hover:bg-[#0052CC] focus:ring-[var(--color-primary)] shadow-sm hover:shadow-md',
-    secondary: 'bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-gray-100 focus:ring-[var(--color-primary)] border border-gray-200',
-    outline: 'bg-transparent border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] focus:ring-[var(--color-primary)]',
-    ghost: 'bg-transparent text-[var(--color-primary)] hover:bg-gray-100 focus:ring-[var(--color-primary)]',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm hover:shadow-md',
+    primary: 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] focus:ring-[var(--color-primary)] shadow-sm hover:shadow-md active:scale-[0.98]',
+    secondary: 'bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] focus:ring-[var(--color-primary)] border border-[var(--color-border)] hover:border-[var(--color-primary)] shadow-sm active:scale-[0.98]',
+    outline: 'bg-transparent border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white focus:ring-[var(--color-primary)] active:scale-[0.98]',
+    ghost: 'bg-transparent text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] focus:ring-[var(--color-primary)] active:scale-[0.98]',
+    danger: 'bg-[var(--color-error)] text-white hover:bg-red-700 focus:ring-[var(--color-error)] shadow-sm hover:shadow-md active:scale-[0.98]',
   };
   
   // Size styles - ensuring minimum 44px height for touch targets
   const sizeStyles = {
-    sm: 'px-4 py-2.5 text-sm gap-2 min-h-[44px]', // 44px minimum for mobile touch
-    md: 'px-5 py-3 text-base gap-2 min-h-[48px]', // 48px for better touch
-    lg: 'px-6 py-3.5 text-lg gap-2.5 min-h-[52px]', // 52px for large buttons
+    sm: 'px-4 py-2.5 text-sm gap-2 min-h-[44px]',
+    md: 'px-5 py-3 text-base gap-2 min-h-[48px]',
+    lg: 'px-6 py-3.5 text-lg gap-2.5 min-h-[52px]',
   };
   
   // Width styles
