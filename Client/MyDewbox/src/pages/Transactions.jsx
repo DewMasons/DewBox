@@ -229,7 +229,7 @@ const Transactions = () => {
     // Verify payment after Paystack popup closes
     const verifyPayment = async (reference) => {
         try {
-            const response = await fetch(`http://localhost:4000/users/transactions/verify/${reference}`, {
+            const response = await fetch(`http://localhost:4000/transactions/verify/${reference}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -246,10 +246,12 @@ const Transactions = () => {
                 queryClient.invalidateQueries(['subscriber']);
                 queryClient.invalidateQueries(['user']);
                 queryClient.invalidateQueries(['balance']);
+                queryClient.invalidateQueries(['wallet']);
                 
                 // Force refetch after a short delay
                 setTimeout(() => {
                     queryClient.refetchQueries(['subscriber']);
+                    queryClient.refetchQueries(['transactions']);
                 }, 500);
                 
                 reset();

@@ -1,19 +1,18 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cardHover } from '../../config/animations';
+import React, { memo } from 'react';
 
 /**
- * Card Component - Professional Fintech Design
+ * Card Component - Minimal & Fast Loading
+ * Optimized for performance with no animations by default
  * 
  * @param {Object} props
  * @param {'default' | 'elevated' | 'outlined' | 'flat'} props.variant - Card style variant
  * @param {'sm' | 'md' | 'lg' | 'none'} props.padding - Card padding size
- * @param {boolean} props.hoverable - Whether card should have hover animation
+ * @param {boolean} props.hoverable - Whether card should have hover effect
  * @param {React.ReactNode} props.children - Card content
  * @param {string} props.className - Additional CSS classes
  * @param {Function} props.onClick - Click handler
  */
-const Card = ({
+const Card = memo(({
   variant = 'default',
   padding = 'md',
   hoverable = false,
@@ -22,15 +21,15 @@ const Card = ({
   onClick,
   ...props
 }) => {
-  // Base styles - clean and professional
-  const baseStyles = 'rounded-lg transition-all duration-150 ease-in-out';
+  // Base styles - minimal and clean
+  const baseStyles = 'rounded-lg transition-colors duration-150';
   
-  // Variant styles - professional fintech design with theme support
+  // Variant styles - minimal shadows for better performance
   const variantStyles = {
-    default: 'bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm',
-    elevated: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-md',
+    default: 'bg-[var(--color-surface)] border border-[var(--color-border)]',
+    elevated: 'bg-[var(--color-surface-elevated)] border border-[var(--color-border)] shadow-sm',
     outlined: 'bg-[var(--color-surface)] border-2 border-[var(--color-border)]',
-    flat: 'bg-[var(--color-surface)] border border-[var(--color-border)]',
+    flat: 'bg-[var(--color-surface)]',
   };
   
   // Padding styles
@@ -41,8 +40,8 @@ const Card = ({
     lg: 'p-8',
   };
   
-  // Hoverable styles
-  const hoverableStyles = hoverable ? 'cursor-pointer hover:shadow-lg hover:border-[var(--color-primary)]' : '';
+  // Hoverable styles - subtle and fast
+  const hoverableStyles = hoverable ? 'cursor-pointer hover:border-[var(--color-primary)] hover:shadow-sm' : '';
   
   // Combine all styles
   const cardClasses = `${baseStyles} ${variantStyles[variant]} ${paddingStyles[padding]} ${hoverableStyles} ${className}`;
@@ -55,24 +54,6 @@ const Card = ({
     }
   };
   
-  // If hoverable, use motion.div with hover animation
-  if (hoverable) {
-    return (
-      <motion.div
-        className={cardClasses}
-        onClick={onClick}
-        onKeyDown={handleKeyDown}
-        whileHover={cardHover}
-        tabIndex={onClick ? 0 : undefined}
-        role={onClick ? 'button' : undefined}
-        {...props}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-  
-  // Otherwise, use regular div
   return (
     <div
       className={cardClasses}
@@ -85,6 +66,8 @@ const Card = ({
       {children}
     </div>
   );
-};
+});
+
+Card.displayName = 'Card';
 
 export default Card;

@@ -24,10 +24,10 @@ const schema = yup.object().shape({
   firstname: yup.string().required("First name is required"),
   surname: yup.string().required("Surname is required"),
   mobile: yup.string().required("Mobile is required"),
-  address1: yup.string().required("Address is required"),
-  country: yup.string().required("Country is required"),
-  state: yup.string().required("State is required"),
-  dob: yup.string().required("Date of birth is required"),
+  address1: yup.string(),
+  country: yup.string(),
+  state: yup.string(),
+  dob: yup.string(),
   alternatePhone: yup.string(),
   currency: yup.string(),
   referral: yup.string(),
@@ -254,7 +254,7 @@ const Profile = () => {
         { name: 'firstname', icon: <User size={20} />, label: 'First Name', type: 'text', required: true },
         { name: 'surname', icon: <User size={20} />, label: 'Surname', type: 'text', required: true },
         { name: 'gender', icon: <User size={20} />, label: 'Gender', type: 'text', required: false },
-        { name: 'dob', icon: <Calendar size={20} />, label: 'Date of Birth', type: 'date', required: true },
+        { name: 'dob', icon: <Calendar size={20} />, label: 'Date of Birth', type: 'date', required: false },
       ]
     },
     {
@@ -262,16 +262,16 @@ const Profile = () => {
       fields: [
         { name: 'mobile', icon: <Phone size={20} />, label: 'Mobile', type: 'text', required: true },
         { name: 'alternatePhone', icon: <Phone size={20} />, label: 'Alternate Phone', type: 'text', required: false },
-        { name: 'email', icon: <Mail size={20} />, label: 'Email', type: 'email', required: false },
+        { name: 'email', icon: <Mail size={20} />, label: 'Email', type: 'email', required: false, disabled: true },
       ]
     },
     {
       title: 'Address',
       fields: [
-        { name: 'address1', icon: <MapPin size={20} />, label: 'Address', type: 'text', required: true },
+        { name: 'address1', icon: <MapPin size={20} />, label: 'Address', type: 'text', required: false },
         { name: 'city', icon: <MapPin size={20} />, label: 'City', type: 'text', required: false },
-        { name: 'country', icon: <MapPin size={20} />, label: 'Country', type: 'select', required: true, options: 'countries' },
-        { name: 'state', icon: <MapPin size={20} />, label: 'State', type: 'select', required: true, options: 'states' },
+        { name: 'country', icon: <MapPin size={20} />, label: 'Country', type: 'select', required: false, options: 'countries' },
+        { name: 'state', icon: <MapPin size={20} />, label: 'State', type: 'select', required: false, options: 'states' },
         { name: 'lga', icon: <MapPin size={20} />, label: 'LGA', type: 'select', required: false, options: 'lgas' },
       ]
     },
@@ -477,20 +477,20 @@ const Profile = () => {
               
               {/* Section Fields - Grid layout for better organization */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {section.fields.map(({ name, icon, label, type, required, options }) => {
+                {section.fields.map(({ name, icon, label, type, required, options, disabled }) => {
                   // Handle select dropdowns for location fields
                   if (type === 'select') {
                     let selectOptions = [];
-                    let isDisabled = false;
+                    let isDisabled = disabled || false;
                     
                     if (options === 'countries') {
                       selectOptions = countriesData?.data || [];
                     } else if (options === 'states') {
                       selectOptions = statesData?.data || [];
-                      isDisabled = !selectedCountry;
+                      isDisabled = isDisabled || !selectedCountry;
                     } else if (options === 'lgas') {
                       selectOptions = lgasData?.data || [];
-                      isDisabled = !selectedState;
+                      isDisabled = isDisabled || !selectedState;
                     }
                     
                     return (
@@ -542,6 +542,7 @@ const Profile = () => {
                       type={type}
                       icon={icon}
                       required={required}
+                      disabled={disabled}
                       error={errors[name]?.message}
                       placeholder={label}
                       {...register(name)}

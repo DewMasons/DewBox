@@ -107,6 +107,8 @@ const Contribute = () => {
             queryClient.invalidateQueries(['transactions']);
             queryClient.invalidateQueries(['subscriber']);
             queryClient.invalidateQueries(['contributionInfo']);
+            queryClient.invalidateQueries(['contributionHistory']);
+            queryClient.invalidateQueries(['wallet']);
         },
         onError: (error) => {
             toast.error(error.response?.data?.message || "Failed to contribute. Please try again");
@@ -182,6 +184,8 @@ const Contribute = () => {
                             queryClient.invalidateQueries(['transactions']);
                             queryClient.invalidateQueries(['subscriber']);
                             queryClient.invalidateQueries(['contributionInfo']);
+                            queryClient.invalidateQueries(['contributionHistory']);
+                            queryClient.invalidateQueries(['wallet']);
                         })
                         .catch((error) => {
                             toast.error(error.response?.data?.message || 'Failed to process contribution');
