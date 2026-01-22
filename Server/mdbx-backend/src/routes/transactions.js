@@ -5,6 +5,24 @@ const axios = require('axios');
 
 const router = express.Router();
 
+// Get current user's transactions
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const [transactions] = await pool.query(
+      'SELECT * FROM transaction WHERE userId = ? ORDER BY createdAt DESC LIMIT 50',
+      [req.user.id]
+    );
+    
+    res.json({
+      status: 'success',
+      data: transactions
+    });
+  } catch (err) {
+    console.error('Get my transactions error:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to get transactions' });
+  }
+});
+
 router.get('/', authenticateToken, async (req, res) => {
   try {
     // Fetch all transactions for the user

@@ -14,14 +14,15 @@ const dbConfig = {
   password: stripQuotes(process.env.MYSQLPASSWORD || process.env.DB_PASSWORD),
   database: process.env.MYSQLDATABASE || process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 5, // Reduced from 10 for Railway free tier
   queueLimit: 0,
   // Add connection timeout and keep-alive settings for Railway
-  connectTimeout: 60000, // 60 seconds
-  acquireTimeout: 60000, // 60 seconds
-  timeout: 60000, // 60 seconds
+  connectTimeout: 30000, // 30 seconds
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
+  keepAliveInitialDelay: 10000,
+  // Add these for better connection management
+  maxIdle: 5, // Maximum idle connections
+  idleTimeout: 60000, // Close idle connections after 60 seconds
 };
 
 // Add SSL configuration for Railway and other cloud providers

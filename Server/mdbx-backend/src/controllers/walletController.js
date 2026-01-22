@@ -1,6 +1,38 @@
 const { Wallet, WalletPayment } = require('../models/wallet');
+const pool = require('../db');
 
 class WalletController {
+  static async getMyWallet(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      // Get user's subscriber info and balance
+      const [userRows] = await pool.query(
+        'SELECT u.balance, s.id as subscriber_id FROM user u LEFT JOIN subscribers s ON u.subscriber_id = s.id WHERE u.id = ?',
+        [userId]
+      );
+      
+      if (userRows.length === 0) {
+        return res.status(404).json({ status: 'error', message: 'User not found' });
+      }
+      
+      const user = userRows[0];
+      
+      res.json({
+        status: 'success',
+        data: {
+          wallet: {
+            balance: parseFloat(user.balance) || 0,
+            subscriberId: user.subscriber_id
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Get my wallet error:', err);
+      res.status(500).json({ status: 'error', message: 'Failed to get wallet' });
+    }
+  }
+
   static async createWallet(req, res) {
     try {
       const { subscriber_id, wallets_amount_created } = req.body;

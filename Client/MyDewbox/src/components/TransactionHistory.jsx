@@ -41,10 +41,10 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                 transaction.amount?.toString().includes(searchQuery);
 
             // Type filter
-            const matchesType = filters.type === "all" || transaction.type === filters.type;
+            const matchesType = filters.type === "all" || transaction.type?.toUpperCase() === filters.type;
 
             // Status filter
-            const matchesStatus = filters.status === "all" || transaction.status === filters.status;
+            const matchesStatus = filters.status === "all" || transaction.status?.toUpperCase() === filters.status;
 
             // Date range filter
             let matchesDate = true;
@@ -102,7 +102,8 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
     }, [transactions, searchQuery, filters]);
 
     const getTransactionIcon = (type) => {
-        switch (type) {
+        const typeUpper = type?.toUpperCase();
+        switch (typeUpper) {
             case "CONTRIBUTION":
             case "DEPOSIT":
                 return <ArrowDownLeft className="text-[#059669]" size={20} />;
@@ -147,7 +148,8 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
     };
 
     const getAmountColor = (type) => {
-        switch (type) {
+        const typeUpper = type?.toUpperCase();
+        switch (typeUpper) {
             case "CONTRIBUTION":
             case "DEPOSIT":
                 return "text-[#059669]";
@@ -160,7 +162,8 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
     };
 
     const formatAmount = (amount, type) => {
-        const prefix = type === "CONTRIBUTION" || type === "DEPOSIT" ? "+" : "-";
+        const typeUpper = type?.toUpperCase();
+        const prefix = typeUpper === "CONTRIBUTION" || typeUpper === "DEPOSIT" ? "+" : "-";
         return `${prefix}₦${Number(amount).toLocaleString()}`;
     };
 
@@ -368,7 +371,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                             <div className="flex items-center gap-4">
                                                 {/* Icon */}
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                                    transaction.type === "CONTRIBUTION" || transaction.type === "DEPOSIT"
+                                                    transaction.type?.toUpperCase() === "CONTRIBUTION" || transaction.type?.toUpperCase() === "DEPOSIT"
                                                         ? "bg-[#dcfce7]"
                                                         : "bg-[#fee2e2]"
                                                 }`}>
@@ -378,7 +381,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                                 {/* Transaction Info */}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-gray-900 truncate">
-                                                        {transaction.description || transaction.type}
+                                                        {transaction.description || transaction.type?.toUpperCase()}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <p className="text-sm text-gray-500">
@@ -389,7 +392,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                                         </p>
                                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
                                                             {getStatusIcon(transaction.status)}
-                                                            {transaction.status}
+                                                            {transaction.status?.toUpperCase()}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -427,7 +430,7 @@ const TransactionHistory = ({ transactions = [], isLoading = false }) => {
                                                             <div>
                                                                 <p className="text-gray-500">Type</p>
                                                                 <p className="font-medium text-gray-900">
-                                                                    {transaction.type}
+                                                                    {transaction.type?.toUpperCase()}
                                                                 </p>
                                                             </div>
                                                             {transaction.recipientEmail && (

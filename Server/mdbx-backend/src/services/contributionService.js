@@ -314,7 +314,7 @@ class ContributionService {
     const icaEndDay = (regDay + 9) > 31 ? (regDay + 9 - 31) : (regDay + 9);
 
     const descriptions = {
-      ICA: 'Investment Cooperative Account - Yearly commitment with interest',
+      ICA: 'Investment Cooperative Account - Join an investment cooperative group. Rotating collection',
       PIGGY: 'Piggy Savings - Flexible savings in your wallet',
       FEE: 'Platform Fee - Service charge'
     };

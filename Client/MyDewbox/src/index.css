@@ -5,6 +5,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font Smoothing for Sharp Text */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 /* CSS Variables - Professional Fintech Design */
 :root {
   /* Professional Color Palette - From provided image */

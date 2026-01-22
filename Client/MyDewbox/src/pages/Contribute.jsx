@@ -1,15 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Heart, TrendingUp, Users, CheckCircle2, ArrowRight, Wallet, PiggyBank, Check } from "lucide-react";
+import { Heart, TrendingUp, Users, CheckCircle2, ArrowRight, Wallet, PiggyBank, Check, CreditCard } from "lucide-react";
 import { apiService } from "../services/api";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Card from "../components/ui/Card";
+import { useAuthStore } from "../store/authstore";
 
 const schema = yup.object().shape({
     amount: yup
@@ -19,27 +20,36 @@ const schema = yup.object().shape({
         .required("Amount is required"),
     description: yup.string().max(200, "Description must be less than 200 characters"),
     contributionType: yup.string().required("Please select a contribution type"),
+    paymentMethod: yup.string().required("Please select a payment method"),
 });
 
 const Contribute = () => {
     const [showSuccess, setShowSuccess] = useState(false);
     const [contributionAmount, setContributionAmount] = useState(0);
     const [selectedType, setSelectedType] = useState('');
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const queryClient = useQueryClient();
+    const { user } = useAuthStore();
+    
+    // Get subscriber data for email
+    const { data: subscriberData } = useQuery({
+        queryKey: ['subscriber'],
+        queryFn: () => apiService.getSubscriber(),
+    });
     
     const contributionTypes = [
         { 
             id: "ica", 
             title: "ICA", 
-            subtitle: "Individual Contribution Account",
-            description: "Personal savings with yearly interest",
+            subtitle: "Investment Cooperative Account",
+            description: "Join an investment cooperative group. Rotating collection",
             icon: TrendingUp,
             color: "ocean-blue",
-            features: ["Yearly commitment", "Earns interest", "Withdraw at year end"]
+            features: ["Yearly commitment", "Earns interest", "Rotating collection"]
         },
         { 
             id: "esusu", 
-            title: "Esusu", 
+            title: "e-susu", 
             subtitle: "Rotating Savings",
             description: "Join a savings rotation group",
             icon: Users,
@@ -55,6 +65,23 @@ const Contribute = () => {
             color: "deep-teal",
             features: ["Flexible withdrawals", "No commitments", "Your personal wallet"]
         },
+    ];
+
+    const paymentMethods = [
+        {
+            id: "wallet",
+            title: "Wallet",
+            subtitle: "Pay from your wallet balance",
+            icon: Wallet,
+            color: "ocean-blue"
+        },
+        {
+            id: "bank",
+            title: "Bank Card",
+            subtitle: "Pay with debit/credit card",
+            icon: CreditCard,
+            color: "bright-cyan"
+        }
     ];
     
     const {
@@ -72,6 +99,7 @@ const Contribute = () => {
     const mutation = useMutation({
         mutationFn: (data) => apiService.contribute(data),
         onSuccess: (response) => {
+            // Wallet payment success
             setContributionAmount(response.data?.amount || 0);
             setShowSuccess(true);
             const typeLabel = contributionTypes.find(t => t.id === selectedType)?.title || 'Contribution';
@@ -85,20 +113,95 @@ const Contribute = () => {
         },
     });
 
+    // Load Paystack script
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://js.paystack.co/v1/inline.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
+
     const onSubmit = async (data) => {
-        // If ESUSU is selected, redirect to coop page
+        // If e-susu is selected, redirect to coop page
         if (data.contributionType === 'esusu') {
-            toast.info('Esusu contributions are managed through cooperatives. Redirecting...');
+            toast.info('e-susu contributions are managed through cooperatives. Redirecting...');
             setTimeout(() => {
                 window.location.href = '/coops';
             }, 1500);
             return;
         }
 
+        // If bank payment is selected, initiate Paystack payment
+        if (data.paymentMethod === 'bank') {
+            const email = subscriberData?.data?.subscriber?.email || user?.email;
+            
+            if (!email) {
+                toast.error('Email not found. Please update your profile.');
+                return;
+            }
+
+            // Initialize Paystack
+            const PaystackPop = window.PaystackPop;
+            if (!PaystackPop) {
+                toast.error('Payment system not loaded. Please refresh the page.');
+                return;
+            }
+
+            const handler = PaystackPop.setup({
+                key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_live_97216478fbe511ebcbb27563d08f7fde0a03ff89',
+                email: email,
+                amount: parseFloat(data.amount) * 100, // Convert to kobo
+                currency: 'NGN',
+                ref: `CONT-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+                metadata: {
+                    contributionType: data.contributionType.toUpperCase(),
+                    description: data.description || 'Contribution',
+                    custom_fields: [
+                        {
+                            display_name: "Contribution Type",
+                            variable_name: "contribution_type",
+                            value: data.contributionType.toUpperCase()
+                        }
+                    ]
+                },
+                callback: function(response) {
+                    // Payment successful
+                    toast.success('Payment successful! Processing contribution...');
+                    
+                    // Verify payment and process contribution
+                    apiService.verifyContribution(response.reference)
+                        .then((verifyResponse) => {
+                            setContributionAmount(verifyResponse.data?.amount || data.amount);
+                            setShowSuccess(true);
+                            const typeLabel = contributionTypes.find(t => t.id === selectedType)?.title || 'Contribution';
+                            toast.success(`${typeLabel} contribution processed successfully! 🎉`);
+                            queryClient.invalidateQueries(['transactions']);
+                            queryClient.invalidateQueries(['subscriber']);
+                            queryClient.invalidateQueries(['contributionInfo']);
+                        })
+                        .catch((error) => {
+                            toast.error(error.response?.data?.message || 'Failed to process contribution');
+                        });
+                },
+                onClose: function() {
+                    toast.info('Payment cancelled');
+                }
+            });
+
+            handler.openIframe();
+            return;
+        }
+
+        // Wallet payment
         mutation.mutate({
             amount: data.amount,
             type: data.contributionType.toUpperCase(),
             description: data.description || 'Contribution',
+            paymentMethod: 'wallet',
         });
     };
 
@@ -106,12 +209,18 @@ const Contribute = () => {
         setShowSuccess(false);
         setContributionAmount(0);
         setSelectedType('');
+        setSelectedPaymentMethod('');
         reset();
     };
 
     const handleTypeSelect = (typeId) => {
         setSelectedType(typeId);
         setValue('contributionType', typeId, { shouldValidate: true });
+    };
+
+    const handlePaymentMethodSelect = (methodId) => {
+        setSelectedPaymentMethod(methodId);
+        setValue('paymentMethod', methodId, { shouldValidate: true });
     };
 
     if (showSuccess) {
@@ -274,6 +383,53 @@ const Contribute = () => {
                             </ul>
                         </motion.div>
                     )}
+
+                    {/* Payment Method Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-3">
+                            Select Payment Method
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {paymentMethods.map((method) => {
+                                const Icon = method.icon;
+                                const isSelected = selectedPaymentMethod === method.id;
+                                return (
+                                    <button
+                                        key={method.id}
+                                        type="button"
+                                        onClick={() => handlePaymentMethodSelect(method.id)}
+                                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                            isSelected
+                                                ? 'border-ocean-blue bg-ice-blue'
+                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                isSelected ? 'bg-ocean-blue' : 'bg-gray-100'
+                                            }`}>
+                                                <Icon className={isSelected ? 'text-white' : 'text-gray-600'} size={20} />
+                                            </div>
+                                            {isSelected && (
+                                                <div className="w-6 h-6 rounded-full bg-ocean-blue flex items-center justify-center">
+                                                    <Check className="text-white" size={14} />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <h3 className="font-semibold text-[var(--color-text-primary)] mb-1">
+                                            {method.title}
+                                        </h3>
+                                        <p className="text-xs text-[var(--color-text-secondary)]">
+                                            {method.subtitle}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {errors.paymentMethod && (
+                            <p className="text-red-500 text-sm mt-2">{errors.paymentMethod.message}</p>
+                        )}
+                    </div>
 
                     <Input
                         type="number"

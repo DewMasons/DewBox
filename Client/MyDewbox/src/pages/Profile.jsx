@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -36,6 +36,7 @@ const schema = yup.object().shape({
   nextOfKinContact: yup.string(),
   city: yup.string(),
   gender: yup.string(),
+  lga: yup.string(),
 });
 
 const Profile = () => {
@@ -55,6 +56,33 @@ const Profile = () => {
     securityAlerts,
     updateSetting 
   } = useSettingsStore();
+
+  // Location state
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+
+  // Fetch countries
+  const { data: countriesData } = useQuery({
+    queryKey: ['countries'],
+    queryFn: () => apiService.getCountries(),
+    staleTime: Infinity, // Countries don't change often
+  });
+
+  // Fetch states when country is selected
+  const { data: statesData } = useQuery({
+    queryKey: ['states', selectedCountry],
+    queryFn: () => apiService.getStates(selectedCountry),
+    enabled: !!selectedCountry,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
+  // Fetch LGAs when state is selected
+  const { data: lgasData } = useQuery({
+    queryKey: ['lgas', selectedCountry, selectedState],
+    queryFn: () => apiService.getLGAs(selectedCountry, selectedState),
+    enabled: !!selectedCountry && !!selectedState,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
 
   // Fetch subscriber info
   const { data: subscriberData, isLoading, error, isFetching } = useQuery({
@@ -89,6 +117,7 @@ const Profile = () => {
       nextOfKinContact: subscriber.nextOfKinContact || '',
       city: subscriber.city || '',
       gender: subscriber.gender || '',
+      lga: subscriber.lga || '',
     };
   }, [subscriberData]);
 
@@ -107,7 +136,11 @@ const Profile = () => {
   useEffect(() => {
     const hasValidData = subscriberData?.data?.subscriber && Object.keys(subscriberData.data.subscriber).length > 0;
     if (hasValidData) {
+      const subscriber = subscriberData.data.subscriber;
       reset(defaultValues);
+      // Set location state for dropdowns
+      if (subscriber.country) setSelectedCountry(subscriber.country);
+      if (subscriber.state) setSelectedState(subscriber.state);
     }
   }, [subscriberData, defaultValues, reset]);
 
@@ -237,8 +270,9 @@ const Profile = () => {
       fields: [
         { name: 'address1', icon: <MapPin size={20} />, label: 'Address', type: 'text', required: true },
         { name: 'city', icon: <MapPin size={20} />, label: 'City', type: 'text', required: false },
-        { name: 'state', icon: <MapPin size={20} />, label: 'State', type: 'text', required: true },
-        { name: 'country', icon: <MapPin size={20} />, label: 'Country', type: 'text', required: true },
+        { name: 'country', icon: <MapPin size={20} />, label: 'Country', type: 'select', required: true, options: 'countries' },
+        { name: 'state', icon: <MapPin size={20} />, label: 'State', type: 'select', required: true, options: 'states' },
+        { name: 'lga', icon: <MapPin size={20} />, label: 'LGA', type: 'select', required: false, options: 'lgas' },
       ]
     },
     {
@@ -443,18 +477,77 @@ const Profile = () => {
               
               {/* Section Fields - Grid layout for better organization */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {section.fields.map(({ name, icon, label, type, required }) => (
-                  <Input
-                    key={name}
-                    label={label}
-                    type={type}
-                    icon={icon}
-                    required={required}
-                    error={errors[name]?.message}
-                    placeholder={label}
-                    {...register(name)}
-                  />
-                ))}
+                {section.fields.map(({ name, icon, label, type, required, options }) => {
+                  // Handle select dropdowns for location fields
+                  if (type === 'select') {
+                    let selectOptions = [];
+                    let isDisabled = false;
+                    
+                    if (options === 'countries') {
+                      selectOptions = countriesData?.data || [];
+                    } else if (options === 'states') {
+                      selectOptions = statesData?.data || [];
+                      isDisabled = !selectedCountry;
+                    } else if (options === 'lgas') {
+                      selectOptions = lgasData?.data || [];
+                      isDisabled = !selectedState;
+                    }
+                    
+                    return (
+                      <div key={name}>
+                        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
+                          {label} {required && <span className="text-red-500">*</span>}
+                        </label>
+                        <select
+                          {...register(name)}
+                          disabled={isDisabled}
+                          onChange={(e) => {
+                            setValue(name, e.target.value);
+                            if (name === 'country') {
+                              setSelectedCountry(e.target.value);
+                              setValue('state', '');
+                              setValue('lga', '');
+                              setSelectedState('');
+                            } else if (name === 'state') {
+                              setSelectedState(e.target.value);
+                              setValue('lga', '');
+                            }
+                          }}
+                          className="w-full px-4 py-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10 focus:border-[var(--color-primary)] outline-none transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <option value="">Select {label}</option>
+                          {selectOptions.map((option, index) => {
+                            // Handle both string and object formats
+                            const optionValue = typeof option === 'string' ? option : option.name;
+                            const optionKey = typeof option === 'string' ? option : option.code || option.name;
+                            return (
+                              <option key={`${name}-${optionKey}-${index}`} value={optionValue}>
+                                {optionValue}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        {errors[name] && (
+                          <p className="text-sm text-red-500 mt-1">{errors[name]?.message}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // Regular input fields
+                  return (
+                    <Input
+                      key={name}
+                      label={label}
+                      type={type}
+                      icon={icon}
+                      required={required}
+                      error={errors[name]?.message}
+                      placeholder={label}
+                      {...register(name)}
+                    />
+                  );
+                })}
               </div>
             </div>
           ))}

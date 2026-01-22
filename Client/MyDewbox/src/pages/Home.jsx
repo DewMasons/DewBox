@@ -425,11 +425,11 @@ const Homepage = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution'
+                        transaction.type?.toLowerCase() === 'ica' || transaction.type?.toLowerCase() === 'piggy' || transaction.type?.toLowerCase() === 'contribution'
                           ? 'bg-green-100'
                           : 'bg-red-100'
                       }`}>
-                        {transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution' ? (
+                        {transaction.type?.toLowerCase() === 'ica' || transaction.type?.toLowerCase() === 'piggy' || transaction.type?.toLowerCase() === 'contribution' ? (
                           <TrendingUp className="text-green-600" size={18} />
                         ) : (
                           <ArrowRight className="text-red-600" size={18} />
@@ -437,10 +437,10 @@ const Homepage = () => {
                       </div>
                       <div>
                         <div className="font-medium text-[var(--color-text-primary)]">
-                          {transaction.type === 'ica' ? 'ICA Contribution' :
-                           transaction.type === 'piggy' ? 'Piggy Contribution' :
-                           transaction.type === 'contribution' ? 'Contribution' :
-                           transaction.type === 'withdrawal' ? 'Withdrawal' :
+                          {transaction.type?.toLowerCase() === 'ica' ? 'ICA Contribution' :
+                           transaction.type?.toLowerCase() === 'piggy' ? 'Piggy Contribution' :
+                           transaction.type?.toLowerCase() === 'contribution' ? 'Contribution' :
+                           transaction.type?.toLowerCase() === 'withdrawal' ? 'Withdrawal' :
                            'Transfer'}
                         </div>
                         <div className="text-xs text-[var(--color-text-secondary)]">
@@ -449,11 +449,11 @@ const Homepage = () => {
                       </div>
                     </div>
                     <div className={`font-semibold ${
-                      transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution'
+                      transaction.type?.toLowerCase() === 'ica' || transaction.type?.toLowerCase() === 'piggy' || transaction.type?.toLowerCase() === 'contribution'
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}>
-                      {transaction.type === 'ica' || transaction.type === 'piggy' || transaction.type === 'contribution' ? '+' : '-'}
+                      {transaction.type?.toLowerCase() === 'ica' || transaction.type?.toLowerCase() === 'piggy' || transaction.type?.toLowerCase() === 'contribution' ? '+' : '-'}
                       {formatCurrency(transaction.amount)}
                     </div>
                   </div>

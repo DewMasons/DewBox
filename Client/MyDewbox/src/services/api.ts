@@ -90,7 +90,7 @@ export const apiService = {
 
   // Transactions
   getTransactions: async () => {
-    const response = await api.get('/users/transactions');
+    const response = await api.get('/transactions/me');
     return response.data;
   },
   createTransaction: async (data: any) => {
@@ -100,6 +100,10 @@ export const apiService = {
   },
   contribute: async (data: any) => {
     const response = await api.post('/contributions', data);
+    return response.data;
+  },
+  verifyContribution: async (reference: string) => {
+    const response = await api.get(`/contributions/verify/${reference}`);
     return response.data;
   },
   getContributionInfo: async () => {
