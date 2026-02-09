@@ -12,7 +12,7 @@ class UserModel {
         // Insert into subscribers
         const dobFormatted = userData.dob ? new Date(userData.dob).toISOString().slice(0, 10) : null;
         const [subscriberResult] = await pool.query(
-            `INSERT INTO subscribers (firstname, address1, country, state, dob, mobile, alternatePhone, currency, referral, referralPhone, nextOfKinName, nextOfKinContact, surname, city, gender, password, othername) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO subscribers (firstname, address1, country, state, dob, mobile, alternatePhone, currency, referral, referralPhone, nextOfKinName, nextOfKinContact, surname, city, gender, password, othername, lga, joinEsusu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 userData.firstname,
                 userData.address1,
@@ -30,7 +30,9 @@ class UserModel {
                 userData.city,
                 userData.gender,
                 userData.password,
-                userData.othername || null // Always provide a value for othername
+                userData.othername || null,
+                userData.lga || null,
+                userData.joinEsusu || 'no'
             ]
         );
         const subscriberId = subscriberResult.insertId;

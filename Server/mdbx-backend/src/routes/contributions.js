@@ -1,8 +1,20 @@
 const express = require('express');
 const authenticateToken = require('../middleware/auth');
 const pool = require('../db');
+const { ensurePaystackProcessedTable, tryMarkPaystackReferenceProcessed } = require('../utils/paystackProcessed');
 
 const router = express.Router();
+
+function getPaystackEmail(user) {
+  const email = (user?.email || '').trim();
+  if (email) return email;
+
+  const mobile = String(user?.mobile || '').replace(/\D/g, '');
+  if (mobile) return `${mobile}@mydewbox.app`;
+
+  const idPart = String(user?.id || 'user').replace(/[^a-z0-9]/gi, '').slice(0, 24) || 'user';
+  return `${idPart}@mydewbox.app`;
+}
 
 // Determine contribution type based on user's registration date and settings
 const getContributionType = (userSettings, registrationDate) => {
@@ -77,12 +89,12 @@ router.post('/', authenticateToken, async (req, res) => {
     if (paymentMethod === 'bank') {
       const axios = require('axios');
       const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/contribute?status=success&type=${contributionType}`;
-      
+       
       try {
         const paystackResponse = await axios.post(
           'https://api.paystack.co/transaction/initialize',
           {
-            email: user.email,
+            email: getPaystackEmail(user),
             amount: parseFloat(amount) * 100, // Convert to kobo
             callback_url: callbackUrl,
             metadata: {
@@ -268,17 +280,21 @@ router.get('/info', authenticateToken, async (req, res) => {
 // Get user's contribution history
 router.get('/history', authenticateToken, async (req, res) => {
   try {
+    console.log('[CONTRIBUTION HISTORY] Request from user:', req.user.id);
+    
     const [contributions] = await pool.query(
       'SELECT * FROM contributions WHERE userId = ? ORDER BY createdAt DESC',
       [req.user.id]
     );
+
+    console.log('[CONTRIBUTION HISTORY] Found', contributions.length, 'contributions');
 
     res.json({
       status: 'success',
       data: contributions
     });
   } catch (err) {
-    console.error('Get contribution history error:', err);
+    console.error('[CONTRIBUTION HISTORY] Error:', err);
     res.status(500).json({ status: 'error', message: 'Failed to get contribution history' });
   }
 });
@@ -368,9 +384,23 @@ router.get('/verify/:reference', async (req, res) => {
 
       // Start transaction
       console.log('[CONTRIBUTION VERIFY] Starting database transaction...');
+      // Ensure idempotency table exists before starting the transaction (DDL can implicitly commit).
+      await ensurePaystackProcessedTable(connection);
       await connection.beginTransaction();
 
       try {
+        // Idempotency: ensure we only process a Paystack reference once.
+        const firstTime = await tryMarkPaystackReferenceProcessed(connection, reference);
+        if (!firstTime) {
+          await connection.rollback();
+          console.log('[CONTRIBUTION VERIFY] Reference already processed:', reference);
+          return res.json({
+            status: 'success',
+            message: 'Payment already processed',
+            data: { amount, reference, userId, contributionType, year, month }
+          });
+        }
+
         // Add funds to user wallet first
         console.log('[CONTRIBUTION VERIFY] Adding funds to wallet...');
         await connection.query(
@@ -421,13 +451,24 @@ router.get('/verify/:reference', async (req, res) => {
           [userId, contributionType, amount, year, month]
         );
 
-        // Record in transactions table
+        // Mark the latest matching pending transaction as completed (fallback to insert if missing).
         console.log('[CONTRIBUTION VERIFY] Recording transaction...');
-        await connection.query(
-          `INSERT INTO transaction (id, type, amount, currency, status, userId, createdAt) 
-           VALUES (UUID(), ?, ?, 'NGN', 'completed', ?, NOW(6))`,
-          ['contribution', amount, userId]
+        const [updateResult] = await connection.query(
+          `UPDATE transaction 
+           SET status = 'completed' 
+           WHERE userId = ? AND type = ? AND amount = ? AND status = 'pending'
+           ORDER BY createdAt DESC
+           LIMIT 1`,
+          [userId, 'contribution', amount]
         );
+
+        if (!updateResult || updateResult.affectedRows === 0) {
+          await connection.query(
+            `INSERT INTO transaction (id, type, amount, currency, status, userId, createdAt) 
+             VALUES (UUID(), ?, ?, 'NGN', 'completed', ?, NOW(6))`,
+            ['contribution', amount, userId]
+          );
+        }
 
         await connection.commit();
         console.log('[CONTRIBUTION VERIFY] Transaction committed successfully!');

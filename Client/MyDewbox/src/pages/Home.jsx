@@ -22,18 +22,32 @@ const Homepage = () => {
   });
 
   // Fetch contribution history
-  const { data: contributionsData } = useQuery({
+  const { data: contributionsData, error: contributionsError, refetch: refetchContributions } = useQuery({
     queryKey: ['contributionHistory'],
     queryFn: () => apiService.getContributionHistory(),
     retry: 1,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch recent transactions
-  const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
+  const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError, refetch: refetchTransactions } = useQuery({
     queryKey: ['transactions'],
     queryFn: () => apiService.getTransactions(),
     retry: 1,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
+
+  // Log errors for debugging
+  React.useEffect(() => {
+    if (contributionsError) {
+      console.error('Contributions fetch error:', contributionsError);
+    }
+    if (transactionsError) {
+      console.error('Transactions fetch error:', transactionsError);
+    }
+  }, [contributionsError, transactionsError]);
 
   // Fetch wallet data
   const { data: walletData } = useQuery({
@@ -240,7 +254,7 @@ const Homepage = () => {
             {/* Quick Actions - Clean buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => navigate('/dashboard/transactions?action=deposit')}
+                onClick={() => navigate('/dashboard/wallet?action=deposit')}
                 className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-all duration-150"
               >
                 <Plus className="w-5 h-5 mb-2 text-[var(--color-primary)]" />
@@ -403,7 +417,7 @@ const Homepage = () => {
                 </h3>
               </div>
               <button
-                onClick={() => navigate('/dashboard/transactions')}
+                onClick={() => navigate('/dashboard/wallet')}
                 className="text-sm text-[#0066FF] hover:underline font-medium"
               >
                 View All

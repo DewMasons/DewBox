@@ -171,40 +171,40 @@ class LocationService {
     if (cleanStateName.endsWith(' State')) {
       cleanStateName = cleanStateName.replace(/ State$/, '');
     }
-    console.log('🔍 Cleaned state name:', cleanStateName);
+    console.log('Cleaned state name:', cleanStateName);
     
     // Use fallback data as primary source for reliability
     const fallbackLGAs = this.getFallbackLGAs(cleanStateName);
     
     if (fallbackLGAs.length > 0) {
-      console.log('✅ Returning', fallbackLGAs.length, 'LGAs from local data');
+      console.log('Returning', fallbackLGAs.length, 'LGAs from local data');
       return fallbackLGAs;
     }
     
     // If no fallback data, try external API as backup
     try {
       const url = 'https://countriesnow.space/api/v0.1/countries/state/lga';
-      console.log('� NPo local data, trying external API');
+      console.log('No local data, trying external API');
       
       const response = await axios.post(url, {
         country: 'Nigeria',
         state: cleanStateName
       }, { timeout: this.timeout });
       
-      console.log('📦 API response status:', response.status);
+      console.log('API response status:', response.status);
       
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         const lgas = response.data.data.map(lga => ({
           name: lga
         })).sort((a, b) => a.name.localeCompare(b.name));
-        console.log('✅ Returning', lgas.length, 'LGAs from API');
+        console.log('Returning', lgas.length, 'LGAs from API');
         return lgas;
       }
     } catch (error) {
-      console.error('❌ Error fetching LGAs from API:', error.message);
+      console.error('Error fetching LGAs from API:', error.message);
     }
     
-    console.log('⚠️ No LGA data available for state:', stateName);
+    console.log('No LGA data available for state:', stateName);
     return [];
   }
 

@@ -26,8 +26,8 @@ const useKeyboardShortcuts = () => {
       const shortcuts = {
         'h': '/dashboard',
         'H': '/dashboard',
-        't': '/dashboard/transactions',
-        'T': '/dashboard/transactions',
+        't': '/dashboard/wallet',
+        'T': '/dashboard/wallet',
         'c': '/dashboard/contribute',
         'C': '/dashboard/contribute',
         'p': '/dashboard/profile',

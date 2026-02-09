@@ -2,23 +2,40 @@ const express = require('express');
 const authenticateToken = require('../middleware/auth');
 const pool = require('../db');
 const axios = require('axios');
+const { ensurePaystackProcessedTable, tryMarkPaystackReferenceProcessed } = require('../utils/paystackProcessed');
 
 const router = express.Router();
+
+function getPaystackEmail(user) {
+  const email = (user?.email || '').trim();
+  if (email) return email;
+
+  // Paystack requires an email; fall back to a deterministic placeholder based on mobile/uuid.
+  const mobile = String(user?.mobile || '').replace(/\D/g, '');
+  if (mobile) return `${mobile}@mydewbox.app`;
+
+  const idPart = String(user?.id || 'user').replace(/[^a-z0-9]/gi, '').slice(0, 24) || 'user';
+  return `${idPart}@mydewbox.app`;
+}
 
 // Get current user's transactions
 router.get('/me', authenticateToken, async (req, res) => {
   try {
+    console.log('[TRANSACTIONS /me] Request from user:', req.user.id);
+    
     const [transactions] = await pool.query(
       'SELECT * FROM transaction WHERE userId = ? ORDER BY createdAt DESC LIMIT 50',
       [req.user.id]
     );
+    
+    console.log('[TRANSACTIONS /me] Found', transactions.length, 'transactions');
     
     res.json({
       status: 'success',
       data: transactions
     });
   } catch (err) {
-    console.error('Get my transactions error:', err);
+    console.error('[TRANSACTIONS /me] Error:', err);
     res.status(500).json({ status: 'error', message: 'Failed to get transactions' });
   }
 });
@@ -82,19 +99,25 @@ router.post('/', authenticateToken, async (req, res) => {
       case 'FEE':
         // Initialize Paystack payment with user's email from database
         const isFee = type.toUpperCase() === 'FEE';
+        const paystackTxType = isFee ? 'fee' : 'deposit';
         const callbackUrl = isFee 
           ? `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?firstPayment=success`
-          : `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/transactions?status=success`;
+          : `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/wallet?status=success`;
+
+        // Record a pending transaction locally. We'll mark it completed on verification.
+        transactionData.type = paystackTxType;
+
+        const paystackEmail = getPaystackEmail(user);
         
         const paystackResponse = await axios.post(
           'https://api.paystack.co/transaction/initialize',
           {
-            email: user.email,
+            email: paystackEmail,
             amount: parseFloat(amount) * 100, // Convert to kobo
             callback_url: callbackUrl,
             metadata: {
               userId: req.user.id,
-              type: isFee ? 'fee' : 'deposit',
+              type: paystackTxType,
               custom_fields: [
                 {
                   display_name: "User ID",
@@ -351,6 +374,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 // Verify Paystack payment (can be called with or without auth for webhooks)
 router.get('/verify/:reference', async (req, res) => {
+  const connection = await pool.getConnection();
   try {
     const { reference } = req.params;
     
@@ -371,22 +395,48 @@ router.get('/verify/:reference', async (req, res) => {
     if (response.data.status && response.data.data.status === 'success') {
       const amount = response.data.data.amount / 100; // Convert from kobo
       const userId = response.data.data.metadata?.userId;
-      
+      const txType = response.data.data.metadata?.type || 'deposit';
+
       if (!userId) {
         return res.status(400).json({ status: 'error', message: 'User ID not found in transaction metadata' });
       }
 
-      // Check if already processed
-      const [existing] = await pool.query(
-        'SELECT * FROM transaction WHERE userId = ? AND status = ? ORDER BY createdAt DESC LIMIT 1',
-        [userId, 'completed']
-      );
+      // Ensure idempotency table exists before starting the transaction (DDL can implicitly commit).
+      await ensurePaystackProcessedTable(connection);
+
+      await connection.beginTransaction();
+
+      // Idempotency: mark the Paystack reference as processed before applying side-effects.
+      const firstTime = await tryMarkPaystackReferenceProcessed(connection, reference);
+      if (!firstTime) {
+        await connection.rollback();
+        return res.json({
+          status: 'success',
+          message: 'Payment already processed',
+          data: { amount, reference, userId }
+        });
+      }
 
       // Update user balance
-      await pool.query(
+      await connection.query(
         'UPDATE user SET balance = balance + ? WHERE id = ?',
         [amount, userId]
       );
+
+      // Mark the latest matching pending transaction as completed. If it's missing, fallback to inserting.
+      const [updateResult] = await connection.query(
+        'UPDATE transaction SET status = ? WHERE userId = ? AND type = ? AND amount = ? AND status = ? ORDER BY createdAt DESC LIMIT 1',
+        ['completed', userId, txType, amount, 'pending']
+      );
+
+      if (!updateResult || updateResult.affectedRows === 0) {
+        await connection.query(
+          'INSERT INTO transaction (id, type, amount, currency, status, userId, createdAt) VALUES (UUID(), ?, ?, ?, ?, ?, NOW(6))',
+          [txType, amount, 'NGN', 'completed', userId]
+        );
+      }
+
+      await connection.commit();
 
       console.log('[VERIFY] Balance updated for user:', userId, 'Amount:', amount);
 
@@ -405,6 +455,8 @@ router.get('/verify/:reference', async (req, res) => {
       message: 'Failed to verify payment', 
       error: err.message 
     });
+  } finally {
+    connection.release();
   }
 });
 

@@ -229,12 +229,7 @@ const Transactions = () => {
     // Verify payment after Paystack popup closes
     const verifyPayment = async (reference) => {
         try {
-            const response = await fetch(`http://localhost:4000/users/transactions/verify/${reference}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            const data = await response.json();
+            const data = await apiService.verifyTransaction(reference);
             
             if (data.status === 'success') {
                 toast.success(`Payment successful! ₦${data.data.amount} added to your wallet`, {
@@ -262,6 +257,26 @@ const Transactions = () => {
             toast.error('Failed to verify payment');
         }
     };
+
+    // If Paystack redirects back to this page (common for some payment channels),
+    // it will append reference/trxref to the URL.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const reference = params.get('reference') || params.get('trxref');
+
+        if (!reference) return;
+
+        verifyPayment(reference).finally(() => {
+            params.delete('reference');
+            params.delete('trxref');
+            params.delete('status');
+
+            const qs = params.toString();
+            const nextUrl = window.location.pathname + (qs ? '?' + qs : '');
+            window.history.replaceState({}, '', nextUrl);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Create mutations for different transaction types
     const depositMutation = useMutation({

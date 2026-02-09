@@ -7,7 +7,7 @@ const api = axios.create({
 
 // Helper to ensure no double slashes in endpoint
 function cleanUrl(url: string) {
-  return url.replace(/([^:]\/)\/+/, '$1');
+  return url.replace(/([^:]\/)\/+/g, '$1');
 }
 
 // Add auth token to requests
@@ -90,12 +90,17 @@ export const apiService = {
 
   // Transactions
   getTransactions: async () => {
-    const response = await api.get('/transactions/me');
+    // Backend mounts transaction routes at /users/transactions
+    const response = await api.get('/users/transactions/me');
     return response.data;
   },
   createTransaction: async (data: any) => {
     const response = await api.post('/users/transactions', data);
     console.log('Create transaction response:', response.data);
+    return response.data;
+  },
+  verifyTransaction: async (reference: string) => {
+    const response = await api.get(`/users/transactions/verify/${reference}`);
     return response.data;
   },
   contribute: async (data: any) => {
@@ -144,10 +149,7 @@ export const apiService = {
   },
   getLGAs: async (country: string, state: string) => {
     const url = cleanUrl(`/locations/lgas?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}`);
-    console.log('🌐 Frontend API call - URL:', url);
-    console.log('🌐 Full URL:', api.defaults.baseURL + url);
     const response = await api.get(url);
-    console.log('📦 Frontend API response:', response.data);
     return response.data;
   },
 };

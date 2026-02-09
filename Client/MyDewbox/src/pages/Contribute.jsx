@@ -127,6 +127,44 @@ const Contribute = () => {
         };
     }, []);
 
+    // If Paystack redirects back here (possible for some channels), verify using the reference in the URL.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const reference = params.get('reference') || params.get('trxref');
+
+        if (!reference) return;
+
+        toast.info('Verifying payment...');
+        apiService.verifyContribution(reference)
+            .then((verifyResponse) => {
+                const amount = verifyResponse.data?.amount;
+                const contributionType = verifyResponse.data?.contributionType;
+
+                if (amount) setContributionAmount(amount);
+                if (contributionType) setSelectedType(String(contributionType).toLowerCase());
+
+                setShowSuccess(true);
+                queryClient.invalidateQueries(['transactions']);
+                queryClient.invalidateQueries(['subscriber']);
+                queryClient.invalidateQueries(['contributionInfo']);
+                queryClient.invalidateQueries(['contributionHistory']);
+                queryClient.invalidateQueries(['wallet']);
+            })
+            .catch((error) => {
+                toast.error(error.response?.data?.message || 'Failed to verify payment');
+            })
+            .finally(() => {
+                params.delete('reference');
+                params.delete('trxref');
+                params.delete('status');
+
+                const qs = params.toString();
+                const nextUrl = window.location.pathname + (qs ? `?${qs}` : '');
+                window.history.replaceState({}, '', nextUrl);
+            });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const onSubmit = async (data) => {
         // If e-susu is selected, redirect to coop page
         if (data.contributionType === 'esusu') {
@@ -153,12 +191,19 @@ const Contribute = () => {
                 return;
             }
 
+            const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+            if (!publicKey) {
+                toast.error('Paystack public key not configured.');
+                return;
+            }
+
             const handler = PaystackPop.setup({
-                key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_live_97216478fbe511ebcbb27563d08f7fde0a03ff89',
+                key: publicKey,
                 email: email,
                 amount: parseFloat(data.amount) * 100, // Convert to kobo
                 currency: 'NGN',
                 ref: `CONT-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+                channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
                 metadata: {
                     contributionType: data.contributionType.toUpperCase(),
                     description: data.description || 'Contribution',

@@ -28,7 +28,7 @@ const FundWalletPrompt = ({ balance, onClose }) => {
 
   const handleFundWallet = () => {
     handleClose();
-    navigate('/dashboard/transactions?action=deposit');
+    navigate('/dashboard/wallet?action=deposit');
   };
 
   const handleRemindLater = () => {

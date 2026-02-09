@@ -169,10 +169,12 @@ const Transactions = () => {
 
 
     // Fetch transaction history
-    const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useQuery({
+    const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError, refetch: refetchTransactions } = useQuery({
         queryKey: ['transactions'],
         queryFn: () => apiService.getTransactions(),
         retry: 1,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
         onError: (error) => {
             console.error('Failed to fetch transactions:', error);
             if (error.response?.status === 401) {
@@ -226,38 +228,36 @@ const Transactions = () => {
         queryFn: () => apiService.getBanks()
     });
 
-    // Verify payment after Paystack popup closes
+    // Verify Paystack payment (called after popup closes or after a redirect back)
     const verifyPayment = async (reference) => {
         try {
-            const response = await fetch(`http://localhost:4000/transactions/verify/${reference}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                toast.success(`Payment successful! ₦${data.data.amount} added to your wallet`, {
+            const data = await apiService.verifyTransaction(reference);
+
+            if (data?.status === 'success') {
+                const amount = data?.data?.amount;
+
+                toast.success("Payment successful! NGN " + amount + " added to your wallet", {
                     autoClose: 5000,
-                    position: 'top-right'
+                    position: 'top-right',
                 });
+
                 // Invalidate all relevant queries to refresh data
                 queryClient.invalidateQueries(['transactions']);
                 queryClient.invalidateQueries(['subscriber']);
                 queryClient.invalidateQueries(['user']);
                 queryClient.invalidateQueries(['balance']);
                 queryClient.invalidateQueries(['wallet']);
-                
+
                 // Force refetch after a short delay
                 setTimeout(() => {
                     queryClient.refetchQueries(['subscriber']);
                     queryClient.refetchQueries(['transactions']);
                 }, 500);
-                
+
                 reset();
                 setActiveTransaction(null);
             } else {
-                toast.error('Payment verification failed');
+                toast.error(data?.message || 'Payment verification failed');
             }
         } catch (err) {
             console.error('Verification error:', err);
@@ -265,6 +265,25 @@ const Transactions = () => {
         }
     };
 
+    // If Paystack redirects back to this page (common for some payment channels),
+    // it will append reference/trxref to the URL.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const reference = params.get('reference') || params.get('trxref');
+
+        if (!reference) return;
+
+        verifyPayment(reference).finally(() => {
+            params.delete('reference');
+            params.delete('trxref');
+            params.delete('status');
+
+            const qs = params.toString();
+            const nextUrl = window.location.pathname + (qs ? '?' + qs : '');
+            window.history.replaceState({}, '', nextUrl);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     // Create mutations for different transaction types
     const depositMutation = useMutation({
         mutationFn: (data) => apiService.createTransaction({ 
@@ -682,8 +701,8 @@ const Transactions = () => {
                                     <Button 
                                         type="button" 
                                         variant="outline" 
-                                        onClick={() => verifyBank("account", "bank")}
-                                        loading={verifyBankMutation.isPending}
+                                        onClick={() => autoVerifyAccount(watchedAccount, watchedBank)}
+                                        loading={isVerifying}
                                     >
                                         Verify
                                     </Button>
